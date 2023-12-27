@@ -31,6 +31,24 @@ pub trait IntoHotEncoding {
 ///
 /// PRETTY!!!
 
+impl Parsable for u32 {
+    fn to_string(&self) -> Option<String> {
+        None
+    }
+    fn to_usize(&self) -> Option<usize> {
+        Some(*self as usize)
+    }
+}
+
+impl Filterable for u32 {}
+
+pub fn top_values() -> Filter<u32> {
+    is(4).or(is(5))
+}
+
+pub fn bottom_values() -> Filter<u32> {
+    not(top_values())
+}
 
 
 pub fn kings() -> Filter<PokerAction> {
@@ -42,7 +60,7 @@ pub fn suited() -> Filter<PokerAction> {
     Filter::regex(r".(.).(\1)")
 }
 
-pub fn is(value : PokerAction) -> Filter<PokerAction> {
+pub fn is<T : Filterable>(value : T) -> Filter<T> {
    Filter::new(value) 
 }
 
@@ -154,15 +172,17 @@ impl<A: Filterable + Action + Into<ActionIndex>> GameMapper<A> {
         }
     }
 
-    fn map(&self, action: A, depth: usize) -> A {
-        // TODO: validate that all functions map to some other action
+    fn map(&self, actions: Vec<A>, depth: usize) -> Vec<A> {
         // TODO: figure out what to do if functions map to two different groups
+        //       right now it's taking a greedy approach
         let mapper = &self.depth_specific_maps[depth];
         match mapper {
-            Some(mapper) => mapper.map(action),
-            None => action,
+            Some(mapper) => actions.iter().map(|action| mapper.map(action.clone())).collect(),
+            None => actions,
         }
+
     }
+
 
     fn encoding(&self, history: &Vec<A>) -> Vec<HotEncoding> {
         debug_assert!(history.len() <= self.recall_depth);
@@ -196,16 +216,16 @@ pub enum Suit {
 }
 
 impl Parsable for Suit {
-    fn to_string(&self) -> String {
+    fn to_string(&self) -> Option<String> {
         match self {
-            Suit::Hearts => "h".to_string(),
-            Suit::Diamonds => "d".to_string(),
-            Suit::Clubs => "c".to_string(),
-            Suit::Spades => "s".to_string(),
+            Suit::Hearts => Some("h".to_string()),
+            Suit::Diamonds => Some("d".to_string()),
+            Suit::Clubs => Some("c".to_string()),
+            Suit::Spades => Some("s".to_string()),
         }
     }
-    fn to_usize(&self) -> usize {
-        panic!("Suits cannot be converted to usize")
+    fn to_usize(&self) -> Option<usize> {
+        None
     }
 }
 
@@ -239,8 +259,8 @@ pub enum Value {
 }
 
 impl Parsable for Value {
-    fn to_string(&self) -> String {
-        match self {
+    fn to_string(&self) -> Option<String> {
+        let result = match self {
             Value::Two => "2".to_string(),
             Value::Three => "3".to_string(),
             Value::Four => "4".to_string(),
@@ -254,10 +274,11 @@ impl Parsable for Value {
             Value::Queen => "Q".to_string(),
             Value::King => "K".to_string(),
             Value::Ace => "A".to_string(),
-        }
+        };
+        Some(result)
     }
-    fn to_usize(&self) -> usize {
-        panic!("Values cannot be converted to usize")
+    fn to_usize(&self) -> Option<usize> {
+        None
     }
 }
 
@@ -289,11 +310,12 @@ pub struct Card {
 }
 
 impl Parsable for Card {
-    fn to_string(&self) -> String {
-        format!("{}{}", self.value.to_string(), self.suit.to_string())
+    fn to_string(&self) -> Option<String>{
+        let string = format!("{}{}", self.value.to_string().unwrap(), self.suit.to_string().unwrap());
+        Some(string)
     }
-    fn to_usize(&self) -> usize {
-        panic!("Cards cannot be converted to usize")
+    fn to_usize(&self) -> Option<usize> {
+        None
     }
 }
 
@@ -312,14 +334,15 @@ pub struct Hand {
 }
 
 impl Parsable for Hand {
-    fn to_string(&self) -> String {
+    fn to_string(&self) -> Option<String> {
         // Sort the cards so that the order is always the same
         let mut cards = vec![self.cards.0.clone(), self.cards.1.clone()];
         cards.sort_by(|a, b| a.to_string().cmp(&b.to_string()));
-        format!("{}{}", cards[0].to_string(), cards[1].to_string())
+        let s = format!("{}{}", cards[0].to_string().unwrap(), cards[1].to_string().unwrap());
+        Some(s)
     }
-    fn to_usize(&self) -> usize {
-        todo!()
+    fn to_usize(&self) -> Option<usize> {
+        None
     }
 }
 
@@ -345,20 +368,20 @@ pub enum PokerAction {
 }
 impl Action for PokerAction {}
 impl Parsable for PokerAction {
-    fn to_string(&self) -> String {
+    fn to_string(&self) -> Option<String> {
         match self {
-            PokerAction::Fold => panic!("Cannot convert fold to string"),
-            PokerAction::Bet(n) => panic!("Cannot convert bet to string"),
-            PokerAction::Check => panic!("Cannot convert check to string"),
-            PokerAction::Deal(hand) => format!("{}", hand.to_string()),
+            PokerAction::Fold => None ,
+            PokerAction::Bet(n) => None ,
+            PokerAction::Check => None ,
+            PokerAction::Deal(hand) => Some(format!("{}", hand.to_string().unwrap())),
         }
     }
-    fn to_usize(&self) -> usize {
+    fn to_usize(&self) -> Option<usize> {
         match self {
-            PokerAction::Fold => panic!("Cannot convert fold to usize"),
-            PokerAction::Bet(n) => *n as usize,
-            PokerAction::Check => panic!("Cannot convert check to usize"),
-            PokerAction::Deal(hand) => panic!("Cannot convert deal to usize"),
+            PokerAction::Fold => None ,
+            PokerAction::Bet(n) => Some(*n as usize),
+            PokerAction::Check => None ,
+            PokerAction::Deal(hand) => None,
         }
     }
 }
@@ -393,8 +416,8 @@ where
 }
 
 pub trait Parsable: Clone + Debug + PartialEq {
-    fn to_string(&self) -> String;
-    fn to_usize(&self) -> usize;
+    fn to_string(&self) -> Option<String>;
+    fn to_usize(&self) -> Option<usize>;
 }
 
 pub trait Filterable: Parsable {
@@ -404,13 +427,19 @@ pub trait Filterable: Parsable {
             Primitive::Regex(details) => {
                 let re = regex::Regex::new(&details.regex).unwrap();
                 list.iter()
-                    .filter(|x| re.is_match(&x.to_string()))
+                    .filter(|x| match x.to_string() {
+                        Some(s) => re.is_match(&s),
+                        None => false,
+                    })
                     .cloned()
                     .collect()
             }
             Primitive::Range(details) => list
                 .iter()
-                .filter(|x| details.range.contains(&x.to_usize()))
+                .filter(|x| match x.to_usize() {
+                    Some(n) => details.range.contains(&n),
+                    None => false,
+                })
                 .cloned()
                 .collect(),
         }
@@ -450,7 +479,7 @@ where
 
 impl<T> Filter<T>
 where
-    T: Filterable + Parsable,
+    T: Filterable ,
 {
     pub fn and(self, other: Filter<T>) -> Self {
         Filter::And(Clause::new(self, other))
