@@ -1,5 +1,5 @@
-use crate::action::{HotEncoding, IntoHotEncoding};
-use crate::constants::ACTION_SPACE_SIZE;
+use crate::action::{HotEncoding, IntoHotEncoding, GameMapper};
+use crate::constants::MAX_GAME_DEPTH;
 use crate::{
     ActionIndex, ActivePlayer, Categorical, Game, HistoryInfo, PlayerObservation, Strategy,
 };
@@ -12,11 +12,12 @@ use std::fs::File;
 use std::io::Write;
 
 #[derive(Clone, Debug)]
-pub struct OuterMCCFR<G: Game> {
+pub struct MCCFR<G: Game> {
     pub game: G,
     pub iterations: usize,
     pub nodes_traversed: usize,
     pub strategies: Vec<RegretStrategy<G>>,
+    pub game_action_mapper : GameMapper<u32>,
 }
 
 /// [Neal] Represents the state information necessary to run iterations on MCCFR
@@ -26,15 +27,16 @@ pub struct OuterMCCFR<G: Game> {
 /// Tabular representation, which may be problematic for extra large games,
 /// we may have to switch to a more efficient representation of the strategy or
 /// DQNs in the future if we want to scale to larger abstract representations
-impl<G: Game> OuterMCCFR<G> {
+impl<G: Game> MCCFR<G> {
     pub fn new(game: G) -> Self {
         let mut s = Vec::new();
         s.resize(game.players(), RegretStrategy::default());
-        OuterMCCFR {
+        MCCFR {
             game,
             iterations: 0,
             nodes_traversed: 0,
             strategies: s,
+            game_action_mapper : GameMapper::new(None),
         }
     }
 
@@ -46,11 +48,11 @@ impl<G: Game> OuterMCCFR<G> {
     }
 
     /// [Neal] Run the MCCFR iterations as specificed
-    pub fn compute_rng<R: Rng>(&mut self, iterations: usize, epsilon: f64, rng: &mut R) {
+    pub fn run_iterations<R: Rng>(&mut self, iterations: usize, epsilon: f64, rng: &mut R) {
         for _i in 0..iterations {
             for player in 0..self.game.players() {
                 self.strategies[player].iterations += 1;
-                self.sample_rec(rng, player, self.game.start(), 1.0, 1.0, 1.0, epsilon);
+                self.run_iteration(rng, player, self.game.start(), 1.0, 1.0, 1.0, epsilon, 0);
             }
             self.iterations += 1;
         }
@@ -59,36 +61,38 @@ impl<G: Game> OuterMCCFR<G> {
     /// The specific math associated with the MCCFR algorithm,
     /// change here if you'd like to update the algo
     /// returns (utility, p_tail, p_sample_leaf)
-    fn sample_rec<R: Rng>(
+    fn run_iteration<R: Rng>(
         &mut self,
         rng: &mut R,
         updated_player: usize,
-        hinfo: HistoryInfo<G>,
+        history_info: HistoryInfo<G>,
         p_reach_updated: f64,
         p_reach_others: f64,
         p_sample: f64,
         epsilon: f64,
+        depth : usize,
     ) -> (f64, f64, f64) {
         self.nodes_traversed += 1;
-        match hinfo.active {
+        match history_info.active {
             ActivePlayer::Terminal(ref payoffs) => (payoffs[updated_player], 1.0, p_sample),
             ActivePlayer::Chance(ref cat) => {
-                let a = cat.sample_idx_rng(rng);
-                let nh = self.game.play_owned(hinfo, a);
-                self.sample_rec(
+                let action_index = cat.sample_idx_rng(rng);
+                let new_history = self.game.play_owned(history_info, action_index);
+                self.run_iteration(
                     rng,
                     updated_player,
-                    nh,
+                    new_history,
                     p_reach_updated,
                     p_reach_others,
                     p_sample,
                     epsilon,
+                    depth + 1,
                 )
             }
             ActivePlayer::Player(player, ref actions) => {
                 let player = player as usize;
                 let n = actions.len();
-                let obs: Vec<PlayerObservation<G>> = hinfo.observations[player].clone();
+                let obs: Vec<PlayerObservation<G>> = history_info.observations[player].clone();
                 let eps = if player == updated_player {
                     epsilon
                 } else {
@@ -108,9 +112,9 @@ impl<G: Game> OuterMCCFR<G> {
                 let p_dist = dist[a_sample];
                 let p_eps = eps / (n as f64) + (1.0 - eps) * p_dist;
 
-                let newinfo = self.game.play_owned(hinfo, a_sample);
+                let newinfo = self.game.play_owned(history_info, a_sample);
                 if player == updated_player {
-                    let (payoff, p_tail, p_sample_leaf) = self.sample_rec(
+                    let (payoff, p_tail, p_sample_leaf) = self.run_iteration(
                         rng,
                         updated_player,
                         newinfo,
@@ -118,6 +122,7 @@ impl<G: Game> OuterMCCFR<G> {
                         p_reach_others,
                         p_sample * p_eps,
                         epsilon,
+                        depth + 1,
                     );
                     let mut dr = vec![0.0; n];
                     let u = payoff * p_reach_others / p_sample_leaf;
@@ -131,7 +136,7 @@ impl<G: Game> OuterMCCFR<G> {
                     self.strategies[player].update(obs.clone(), Some(&dr), None);
                     (payoff, p_tail * p_dist, p_sample_leaf)
                 } else {
-                    let (payoff, p_tail, p_sample_leaf) = self.sample_rec(
+                    let (payoff, p_tail, p_sample_leaf) = self.run_iteration(
                         rng,
                         updated_player,
                         newinfo,
@@ -139,6 +144,7 @@ impl<G: Game> OuterMCCFR<G> {
                         p_reach_others * p_dist,
                         p_sample * p_eps,
                         epsilon,
+                        depth + 1,
                     );
                     let mut ds = dist;
                     ds.iter_mut().for_each(|v| {
@@ -324,15 +330,15 @@ fn regret_matching(reg: &[f64]) -> Vec<f64> {
 
 #[cfg(test)]
 mod test {
-    use crate::{goofspiel, Game, Goofspiel, OuterMCCFR, Strategy};
+    use crate::{goofspiel, Game, Goofspiel, MCCFR, Strategy};
     use rand::{rngs::SmallRng, SeedableRng};
 
     #[test]
     fn test_goof3_mccfr() {
         let g = Goofspiel::new(3, goofspiel::Scoring::ZeroSum);
-        let mut mc = OuterMCCFR::new(g.clone());
+        let mut mc = MCCFR::new(g.clone());
         let mut rng = SmallRng::seed_from_u64(1);
-        mc.compute_rng(5000, 0.6, &mut rng);
+        mc.run_iterations(5000, 0.6, &mut rng);
         let s = g.start();
         let s = g.play_owned(s, 1);
         let pol = mc.strategies[0].policy(&s.active, &s.observations[0]);

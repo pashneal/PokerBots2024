@@ -126,6 +126,7 @@ impl<A: Filterable> ActionMapper<A> {
 /// May contain a filter for each depth of the game
 /// if no filter is present for a given depth, actions
 /// are mapped to themselves
+#[derive(Debug, Clone)]
 pub struct GameMapper<A: Filterable + Action> {
     depth_specific_maps: Vec<Option<ActionMapper<A>>>,
     recall_depth: usize,
@@ -136,7 +137,7 @@ impl<A: Filterable + Action + Into<ActionIndex>> GameMapper<A> {
     ///  Create a GameMapper with no default mapping (passes all actions through)
     ///  recall_depth determines how many states will be
     ///  outputted by a HotEncoding
-    fn new(recall_depth: Option<usize>) -> Self {
+    pub fn new(recall_depth: Option<usize>) -> Self {
         let recall_depth = recall_depth.unwrap_or(MAX_GAME_DEPTH);
         GameMapper {
             depth_specific_maps: vec![None; MAX_GAME_DEPTH],
@@ -145,7 +146,7 @@ impl<A: Filterable + Action + Into<ActionIndex>> GameMapper<A> {
         }
     }
     /// Create a GameMapper with a given default mapping for all depths
-    fn from_default(default_map: ActionMapper<A>, recall_depth: Option<usize>) -> Self {
+    pub fn from_default(default_map: ActionMapper<A>, recall_depth: Option<usize>) -> Self {
         let recall_depth = recall_depth.unwrap_or(MAX_GAME_DEPTH);
         let encoding_size = default_map.num_groups();
         GameMapper {
@@ -156,7 +157,7 @@ impl<A: Filterable + Action + Into<ActionIndex>> GameMapper<A> {
     }
 
     /// Create a GameMapper to operate a specific depth of the game
-    fn add_map(&mut self, mapper: Option<ActionMapper<A>>, depth: usize) {
+    pub fn add_map(&mut self, mapper: Option<ActionMapper<A>>, depth: usize) {
         self.depth_specific_maps[depth] = mapper;
         // If there is a mapper, then we need to update the max encoding size
         self.max_encoding_size = 0;
@@ -184,7 +185,7 @@ impl<A: Filterable + Action + Into<ActionIndex>> GameMapper<A> {
     }
 
 
-    fn encoding(&self, history: &Vec<A>) -> Vec<HotEncoding> {
+    pub fn encoding(&self, history: &Vec<A>) -> Vec<HotEncoding> {
         debug_assert!(history.len() <= self.recall_depth);
         let mut encodings = Vec::new();
         let max_depth = self.recall_depth;

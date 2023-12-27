@@ -17,7 +17,7 @@ pub use self::distribution::Categorical;
 pub use self::game::Game;
 pub use self::goofspiel::Goofspiel;
 pub use self::history::{ActivePlayer, HistoryInfo, Observation, PlayerObservation};
-pub use self::mccfr::{OuterMCCFR, RegretStrategy};
+pub use self::mccfr::{MCCFR, RegretStrategy};
 pub use self::strategy::{Strategy, UniformStrategy};
 
 pub type ActionIndex = u32;
