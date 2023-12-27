@@ -13,5 +13,5 @@ Implements an autonomous agent for playing a variant of poker decided by course 
 
 Currently Implemented:
 
-    - Filter-based design to make changing the kinds of groups we choose for our abstractions super easy and bug free.
+    - Filter-based design to make changing our action abstractions super easy and bug free.
 
