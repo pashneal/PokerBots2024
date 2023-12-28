@@ -2,8 +2,6 @@ extern crate bit_set;
 extern crate hashbrown;
 extern crate rand;
 
-mod state;
-mod visibility;
 mod action;
 mod constants;
 mod distribution;
@@ -11,7 +9,9 @@ mod game;
 pub mod goofspiel;
 mod history;
 mod mccfr;
+mod state;
 mod strategy;
+mod visibility;
 
 pub use self::action::{HotEncoding, IntoHotEncoding};
 pub use self::constants::HOT_ENCODING_SIZE;

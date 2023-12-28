@@ -12,8 +12,6 @@ pub trait IntoHotEncoding {
     fn encoding(self) -> HotEncoding;
 }
 
-
-
 /// generic function time!!! look how readable the resulting syntax is!!!
 /// *swoon*
 ///
@@ -50,29 +48,30 @@ pub fn bottom_values() -> Filter<u32> {
     not(top_values())
 }
 
-
 pub fn kings() -> Filter<PokerAction> {
     Filter::regex(r"K.K.")
 }
-
 
 pub fn suited() -> Filter<PokerAction> {
     Filter::regex(r".(.).(\1)")
 }
 
-pub fn is<T : Filterable>(value : T) -> Filter<T> {
-   Filter::new(value) 
+pub fn is<T: Filterable>(value: T) -> Filter<T> {
+    Filter::new(value)
 }
 
-pub fn not<T : Filterable>(value : Filter<T>) -> Filter<T> {
+pub fn not<T: Filterable>(value: Filter<T>) -> Filter<T> {
     Filter::not(value)
 }
 
-pub fn bet_range(range : StdRange<usize>) -> Filter<PokerAction> {
+pub fn bet_range(range: StdRange<usize>) -> Filter<PokerAction> {
     Filter::range(range)
 }
 
-pub trait Action: Clone + Debug + Hash + PartialEq + Eq + Into<ActionIndex> + IntoHotEncoding + Filterable {}
+pub trait Action:
+    Clone + Debug + Hash + PartialEq + Eq + Into<ActionIndex> + IntoHotEncoding + Filterable
+{
+}
 
 /// Some default implementations to get us situated for goofspiel impl
 impl Action for u32 {}
@@ -132,7 +131,7 @@ pub struct GameMapper<A: Filterable + Action> {
     max_encoding_size: usize,
 }
 
-impl<A: Filterable + Action > GameMapper<A> {
+impl<A: Filterable + Action> GameMapper<A> {
     ///  Create a GameMapper with no default mapping (passes all actions through)
     ///  recall_depth determines how many states will be
     ///  outputted by a HotEncoding
@@ -185,12 +184,13 @@ impl<A: Filterable + Action > GameMapper<A> {
         //       right now it's taking a greedy approach
         let mapper = &self.depth_specific_maps[depth];
         match mapper {
-            Some(mapper) => actions.iter().map(|action| mapper.map(action.clone())).collect(),
+            Some(mapper) => actions
+                .iter()
+                .map(|action| mapper.map(action.clone()))
+                .collect(),
             None => actions.clone(),
         }
-
     }
-
 
     pub fn encoding(&self, history: &Vec<A>) -> Vec<HotEncoding> {
         debug_assert!(history.len() <= self.recall_depth);
@@ -199,11 +199,10 @@ impl<A: Filterable + Action > GameMapper<A> {
 
         // Take last *depth* actions, map them to ActionIndex, and then encode them
         for (index, action) in history.iter().rev().take(max_depth).rev().enumerate() {
-
             let mapper = &self.depth_specific_maps[index];
             let action_index = match mapper {
                 Some(mapper) => mapper.to_index(action.clone()),
-                None => action.clone().into()
+                None => action.clone().into(),
             };
             let mut encoding = action_index.encoding();
             // Pad the end of any sparser encondings with dummy false values
@@ -318,8 +317,12 @@ pub struct Card {
 }
 
 impl Parsable for Card {
-    fn to_string(&self) -> Option<String>{
-        let string = format!("{}{}", self.value.to_string().unwrap(), self.suit.to_string().unwrap());
+    fn to_string(&self) -> Option<String> {
+        let string = format!(
+            "{}{}",
+            self.value.to_string().unwrap(),
+            self.suit.to_string().unwrap()
+        );
         Some(string)
     }
     fn to_usize(&self) -> Option<usize> {
@@ -346,7 +349,11 @@ impl Parsable for Hand {
         // Sort the cards so that the order is always the same
         let mut cards = vec![self.cards.0.clone(), self.cards.1.clone()];
         cards.sort_by(|a, b| a.to_string().cmp(&b.to_string()));
-        let s = format!("{}{}", cards[0].to_string().unwrap(), cards[1].to_string().unwrap());
+        let s = format!(
+            "{}{}",
+            cards[0].to_string().unwrap(),
+            cards[1].to_string().unwrap()
+        );
         Some(s)
     }
     fn to_usize(&self) -> Option<usize> {
@@ -384,27 +391,27 @@ impl Into<u32> for PokerAction {
         }
     }
 }
-impl Action for PokerAction{}
+impl Action for PokerAction {}
 
 impl Parsable for PokerAction {
     fn to_string(&self) -> Option<String> {
         match self {
-            PokerAction::Fold => None ,
-            PokerAction::Bet(n) => None ,
-            PokerAction::Check => None ,
+            PokerAction::Fold => None,
+            PokerAction::Bet(n) => None,
+            PokerAction::Check => None,
             PokerAction::Deal(hand) => Some(format!("{}", hand.to_string().unwrap())),
         }
     }
     fn to_usize(&self) -> Option<usize> {
         match self {
-            PokerAction::Fold => None ,
+            PokerAction::Fold => None,
             PokerAction::Bet(n) => Some(*n as usize),
-            PokerAction::Check => None ,
+            PokerAction::Check => None,
             PokerAction::Deal(hand) => None,
         }
     }
 }
-impl Filterable for PokerAction{}
+impl Filterable for PokerAction {}
 
 /// TODO: this is a dummy implemenation until we have full abstractions
 impl IntoHotEncoding for PokerAction {
@@ -498,7 +505,7 @@ where
 
 impl<T> Filter<T>
 where
-    T: Filterable ,
+    T: Filterable,
 {
     pub fn and(self, other: Filter<T>) -> Self {
         Filter::And(Clause::new(self, other))
@@ -513,11 +520,13 @@ where
     }
 
     pub fn regex(regex: &str) -> Self {
-        Filter::BaseCase(Primitive::Regex(RegexQuery { regex :regex.to_string()}))
+        Filter::BaseCase(Primitive::Regex(RegexQuery {
+            regex: regex.to_string(),
+        }))
     }
 
     pub fn range(range: StdRange<usize>) -> Self {
-        Filter::BaseCase(Primitive::Range(RangeQuery { range}))
+        Filter::BaseCase(Primitive::Range(RangeQuery { range }))
     }
 
     pub fn not(self) -> Self {
@@ -538,7 +547,10 @@ where
             }
             Filter::Not(filter) => {
                 let filtered = filter.apply_on(list);
-                list.iter().filter(|x| !filtered.contains(x)).cloned().collect()
+                list.iter()
+                    .filter(|x| !filtered.contains(x))
+                    .cloned()
+                    .collect()
             }
             Filter::BaseCase(primitive) => Filterable::filter(list, primitive),
         }

@@ -1,26 +1,21 @@
-use crate::action::{HotEncoding, IntoHotEncoding, GameMapper};
-use crate::constants::MAX_GAME_DEPTH;
-use crate::{
-    ActionIndex, Categorical, Game
-};
-use crate::strategy::RegretStrategy;
 use crate::action::Action;
-use crate::state::{State, ActivePlayer};
+use crate::action::{GameMapper, HotEncoding, IntoHotEncoding};
+use crate::constants::MAX_GAME_DEPTH;
+use crate::state::{ActivePlayer, State};
+use crate::strategy::RegretStrategy;
+use crate::{ActionIndex, Categorical, Game};
 use hashbrown::HashMap;
 use rand::Rng;
 use serde_json::json;
 use std::collections::HashMap as SerializableHashMap;
 
-
-
-
 #[derive(Clone, Debug)]
-pub struct MCCFR<A: Action, S : State<A>> {
+pub struct MCCFR<A: Action, S: State<A>> {
     pub game: Game<A, S>,
     pub iterations: usize,
     pub nodes_traversed: usize,
     pub strategies: Vec<RegretStrategy<A>>,
-    pub action_mapper : GameMapper<A>,
+    pub action_mapper: GameMapper<A>,
 }
 
 /// [Neal] Represents the state information necessary to run iterations on MCCFR
@@ -30,8 +25,8 @@ pub struct MCCFR<A: Action, S : State<A>> {
 /// Tabular representation, which may be problematic for extra large games,
 /// we may have to switch to a more efficient representation of the strategy or
 /// DQNs in the future if we want to scale to larger abstract representations
-impl <A: Action, S : State<A>> MCCFR<A, S> {
-    pub fn new(game: Game<A,S>) -> Self {
+impl<A: Action, S: State<A>> MCCFR<A, S> {
+    pub fn new(game: Game<A, S>) -> Self {
         let mut s = Vec::new();
         s.resize(game.num_regular_players(), RegretStrategy::default());
         MCCFR {
@@ -39,7 +34,7 @@ impl <A: Action, S : State<A>> MCCFR<A, S> {
             iterations: 0,
             nodes_traversed: 0,
             strategies: s,
-            action_mapper : GameMapper::new(None),
+            action_mapper: GameMapper::new(None),
         }
     }
 
@@ -55,7 +50,7 @@ impl <A: Action, S : State<A>> MCCFR<A, S> {
         for _i in 0..iterations {
             for player in 0..self.game.num_regular_players() {
                 self.strategies[player].iterations += 1;
-                self.game = Game::<_,_>::new();
+                self.game = Game::<_, _>::new();
                 self.run_iteration(rng, player, 1.0, 1.0, 1.0, epsilon, 0);
             }
             self.iterations += 1;
@@ -73,14 +68,11 @@ impl <A: Action, S : State<A>> MCCFR<A, S> {
         p_reach_others: f64,
         p_sample: f64,
         epsilon: f64,
-        depth : usize,
+        depth: usize,
     ) -> (f64, f64, f64) {
         self.nodes_traversed += 1;
         match self.game.active_player() {
-            ActivePlayer::Terminal(ref payoffs) => {
-                (payoffs[updated_player], 1.0, p_sample)
-
-            },
+            ActivePlayer::Terminal(ref payoffs) => (payoffs[updated_player], 1.0, p_sample),
             ActivePlayer::Chance(ref cat) => {
                 // Sample an action from the space of random chance
                 // then map it to our internal action space
@@ -179,4 +171,3 @@ fn regret_matching(reg: &[f64]) -> Vec<f64> {
         vec![1.0 / l as f64; l]
     }
 }
-

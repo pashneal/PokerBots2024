@@ -1,8 +1,8 @@
-use crate::{ActionIndex, Categorical, Game};
-use crate::action::{HotEncoding, IntoHotEncoding, GameMapper};
-use std::collections::HashMap;
 use crate::action::Action;
+use crate::action::{GameMapper, HotEncoding, IntoHotEncoding};
 use crate::state::State;
+use crate::{ActionIndex, Categorical, Game};
+use std::collections::HashMap;
 
 use std::fs::File;
 use std::io::Write;
@@ -13,13 +13,13 @@ pub type RegretDistribution = Vec<f64>;
 pub type Mapping<A> = HashMap<InformationSet<A>, (StrategyDistribution, RegretDistribution)>;
 
 #[derive(Clone, Debug)]
-pub struct RegretStrategy<A : Action> {
+pub struct RegretStrategy<A: Action> {
     pub updates: usize,
     pub iterations: usize,
-    information_sets: Mapping<A>
+    information_sets: Mapping<A>,
 }
 
-impl<A : Action> Default for RegretStrategy<A> {
+impl<A: Action> Default for RegretStrategy<A> {
     fn default() -> Self {
         RegretStrategy {
             iterations: 0,
@@ -30,7 +30,10 @@ impl<A : Action> Default for RegretStrategy<A> {
 }
 
 impl<A: Action> RegretStrategy<A> {
-    pub fn get(&self, info_set: &InformationSet<A>) -> Option<&(StrategyDistribution, RegretDistribution)> {
+    pub fn get(
+        &self,
+        info_set: &InformationSet<A>,
+    ) -> Option<&(StrategyDistribution, RegretDistribution)> {
         self.information_sets.get(info_set)
     }
     pub fn save_table_json(&self, file_name: &str) {
@@ -87,7 +90,6 @@ impl<A: Action> RegretStrategy<A> {
     }
 }
 
-
 pub fn to_encodings(v: Vec<impl IntoHotEncoding>) -> Vec<HotEncoding> {
     let mut encodings = Vec::new();
     for e in v {
@@ -137,4 +139,3 @@ pub fn normalized(v: Vec<f64>) -> Vec<f64> {
     }
     normalized
 }
-

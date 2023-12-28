@@ -1,7 +1,7 @@
 mod constants;
 
-use gtcogs::{goofspiel, Game, MCCFR};
 use crate::goofspiel::{GoofspielAction, GoofspielState};
+use gtcogs::{goofspiel, Game, MCCFR};
 use rand::{rngs::SmallRng, SeedableRng};
 
 pub fn main() -> () {
