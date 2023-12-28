@@ -3,7 +3,7 @@ use crate::action::{GameMapper, HotEncoding, IntoHotEncoding};
 use crate::constants::MAX_GAME_DEPTH;
 use crate::state::{ActivePlayer, State};
 use crate::strategy::RegretStrategy;
-use crate::{ActionIndex, Categorical, Game};
+use crate::{Categorical, Game};
 use hashbrown::HashMap;
 use rand::Rng;
 use serde_json::json;
@@ -15,7 +15,7 @@ pub struct MCCFR<A: Action, S: State<A>> {
     pub iterations: usize,
     pub nodes_traversed: usize,
     pub strategies: Vec<RegretStrategy<A>>,
-    pub action_mapper: GameMapper<A>,
+    pub game_mapper: GameMapper<A>,
 }
 
 /// [Neal] Represents the state information necessary to run iterations on MCCFR
@@ -34,26 +34,36 @@ impl<A: Action, S: State<A>> MCCFR<A, S> {
             iterations: 0,
             nodes_traversed: 0,
             strategies: s,
-            action_mapper: GameMapper::new(None),
+            game_mapper: GameMapper::new(None),
         }
+    }
+
+    pub fn with_game_mapper(&mut self, game_mapper: GameMapper<A>) {
+        self.game_mapper = game_mapper;
     }
 
     pub fn write_to(&self, file_name: &str) {
         for i in 0..self.game.num_regular_players() {
             let file = format!("{}{}", file_name.to_owned(), format!("_p{}.json", i));
-            self.strategies[i].save_table_json(&file);
+            self.strategies[i].save_table_json(&file, &self.game_mapper);
         }
     }
 
     /// [Neal] Run the MCCFR iterations as specificed
     pub fn run_iterations<R: Rng>(&mut self, iterations: usize, epsilon: f64, rng: &mut R) {
-        for _i in 0..iterations {
+        for i in 0..iterations {
             for player in 0..self.game.num_regular_players() {
                 self.strategies[player].iterations += 1;
                 self.game = Game::<_, _>::new();
                 self.run_iteration(rng, player, 1.0, 1.0, 1.0, epsilon, 0);
             }
             self.iterations += 1;
+            if i % 100_000 == 0 {
+                println!(
+                    "Iteration: {}, Nodes Traversed: {}, strategies[0] size: {}",
+                    self.iterations, self.nodes_traversed, self.strategies[0].size()
+                );
+            }
         }
     }
 
@@ -77,7 +87,7 @@ impl<A: Action, S: State<A>> MCCFR<A, S> {
                 // Sample an action from the space of random chance
                 // then map it to our internal action space
                 let action = cat.sample_ref_rng(rng).clone();
-                let action = self.action_mapper.map_action(action, depth);
+                let action = self.game_mapper.map_action(action, depth);
                 self.game.play(action);
 
                 self.run_iteration(
@@ -92,7 +102,7 @@ impl<A: Action, S: State<A>> MCCFR<A, S> {
             }
             ActivePlayer::Player(player, ref actions) => {
                 let player = player as usize;
-                let actions = self.action_mapper.map_actions(actions, depth);
+                let actions = self.game_mapper.map_actions(actions, depth);
                 let n = actions.len();
                 let epsilon = if player == updated_player {
                     epsilon

@@ -1,7 +1,6 @@
 /// Implementation of Goofspiel, a simpler card game. Very useful for
 /// figuring out how to implement a game in this framework.
 use crate::action::{HotEncoding, IntoHotEncoding};
-use crate::constants::HOT_ENCODING_SIZE;
 use crate::state::{ActivePlayer, State};
 use crate::visibility::Visibility;
 use crate::{Categorical, Utility};
@@ -17,9 +16,9 @@ pub enum Scoring {
 const MIN_SCORE: i32 = -13;
 
 impl IntoHotEncoding for i32 {
-    fn encoding(self) -> HotEncoding {
+    fn encoding(self, size : usize) -> HotEncoding {
         let score = self - MIN_SCORE;
-        let mut v = vec![false; HOT_ENCODING_SIZE];
+        let mut v = vec![false; size];
         v[score as usize] = true;
         v
     }

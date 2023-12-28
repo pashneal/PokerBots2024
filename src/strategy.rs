@@ -1,7 +1,7 @@
 use crate::action::Action;
 use crate::action::{GameMapper, HotEncoding, IntoHotEncoding};
 use crate::state::State;
-use crate::{ActionIndex, Categorical, Game};
+use crate::{Categorical, Game};
 use std::collections::HashMap;
 
 use std::fs::File;
@@ -36,19 +36,20 @@ impl<A: Action> RegretStrategy<A> {
     ) -> Option<&(StrategyDistribution, RegretDistribution)> {
         self.information_sets.get(info_set)
     }
-    pub fn save_table_json(&self, file_name: &str) {
+
+    pub fn save_table_json(&self, file_name: &str, action_mapper : &GameMapper<A>) {
         let mut file = File::create(file_name).unwrap();
         let mut table = Vec::new();
         for (information_set, (strategy, _)) in &self.information_sets {
-            let info_set = to_encodings(information_set.clone());
+            let info_set = to_encodings(information_set.clone(), action_mapper);
             let info_set = to_int(info_set);
             let info_set = to_binary(info_set);
 
-            // If there is a non-zero value in the strategy, add it to the table
+            // Optimization: only if there is a non-zero value in the strategy, add it to the table
             if strategy.iter().all(|&x| x < 0.0001) {
                 continue;
             }
-            // If  there is only one choice in the strategy, don't add it to the table
+            // Optimization: If there is only one choice in the strategy, don't add it to the table
             if strategy.len() == 1 {
                 continue;
             }
@@ -88,14 +89,14 @@ impl<A: Action> RegretStrategy<A> {
             }
         }
     }
+
+    pub fn size(&self) -> usize {
+        self.information_sets.len()
+    }
 }
 
-pub fn to_encodings(v: Vec<impl IntoHotEncoding>) -> Vec<HotEncoding> {
-    let mut encodings = Vec::new();
-    for e in v {
-        encodings.push(e.encoding());
-    }
-    encodings
+pub fn to_encodings<A : Action>(actions: Vec<A>,  mapper: &GameMapper<A>) -> Vec<HotEncoding> {
+    mapper.encode(&actions)
 }
 
 pub fn to_int(v: Vec<HotEncoding>) -> Vec<Vec<i32>> {

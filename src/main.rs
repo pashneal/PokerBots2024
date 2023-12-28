@@ -1,15 +1,67 @@
 mod constants;
+mod action;
+mod util;
+mod distribution;
+mod game;
+pub mod goofspiel;
+mod history;
+mod mccfr;
+mod state;
+mod strategy;
+mod visibility;
 
+pub use self::action::{HotEncoding, IntoHotEncoding};
+pub use self::constants::HOT_ENCODING_SIZE;
+pub use self::distribution::Categorical;
+pub use self::game::Game;
+pub use self::mccfr::MCCFR;
+use crate::util::*;
 use crate::goofspiel::{GoofspielAction, GoofspielState};
-use gtcogs::{goofspiel, Game, MCCFR};
 use rand::{rngs::SmallRng, SeedableRng};
+
+
+pub type Utility = f64;
+
+
+
+use crate::action::*;
+
+
+pub fn test_abstractions() -> GameMapper<GoofspielAction> {
+    // Set up our filters
+    let is_high =  card_range(4..); 
+    let is_mid = is(2).or(is(3)); 
+
+    let high  = is_high.clone();
+    let mid = is_mid.clone();
+    let is_low = not(high).and(not(mid));  // You can compose filters!! 
+
+    // Action level mapping 
+    let mut action_mapper =  ActionMapper::new();
+    action_mapper.add_filter(is_high, 4); // Map all high cards to 4
+    action_mapper.add_filter(is_mid, 2);  // And so on
+    action_mapper.add_filter(is_low, 1);
+
+    // Game level mapping
+    // do not specify a recall depth, (has perfect recall)
+    let mut game_mapper = GameMapper::new(None);
+
+    // Use our action mapper only for the first depth
+    // all other depths will default to passing through the action
+    game_mapper.update_depth(Some(action_mapper), 0);
+
+    game_mapper
+
+}
 
 pub fn main() -> () {
     let g = Game::<GoofspielAction, GoofspielState>::new();
 
+
     let mut mc = MCCFR::new(g);
+    mc.with_game_mapper(test_abstractions());
     let mut rng = SmallRng::seed_from_u64(2);
-    mc.run_iterations(10000000, 0.6, &mut rng);
+    mc.run_iterations(1000000, 0.6, &mut rng);
 
     mc.write_to("goofspiel");
 }

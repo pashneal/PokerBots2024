@@ -1,72 +1,18 @@
 use crate::constants::*;
-use crate::ActionIndex;
 use std::fmt::Debug;
 use std::hash::Hash;
-use std::ops::Range as StdRange;
+pub use std::ops::RangeFrom as StdRange;
 
+pub type ActionIndex = u32;
 /// Represents a possible action or observation in the game
 /// from a limited number of choices, must have exactly one boolean set to true
 pub type HotEncoding = Vec<bool>;
 
 pub trait IntoHotEncoding {
-    fn encoding(self) -> HotEncoding;
+    fn encoding(self, size : usize) -> HotEncoding;
 }
 
-/// generic function time!!! look how readable the resulting syntax is!!!
-/// *swoon*
-///
-/// let hundred_bet = is(Bet(100))
-///                 .or(is(Bet(200)))
-///                 .or(is(Bet(300)));
-///
-/// let disjoint_bet = bet_range(0..100)
-///                 .or(bet_range(200..300))
-///                 .or(bet_range(400..500));
-///
-/// let suited_kings = suited().and(kings());
-/// let not_suited_kings = not(suited_kings);
-///
-///
-/// PRETTY!!!
 
-impl Parsable for u32 {
-    fn to_string(&self) -> Option<String> {
-        None
-    }
-    fn to_usize(&self) -> Option<usize> {
-        Some(*self as usize)
-    }
-}
-
-impl Filterable for u32 {}
-
-pub fn top_values() -> Filter<u32> {
-    is(4).or(is(5))
-}
-
-pub fn bottom_values() -> Filter<u32> {
-    not(top_values())
-}
-
-pub fn kings() -> Filter<PokerAction> {
-    Filter::regex(r"K.K.")
-}
-
-pub fn suited() -> Filter<PokerAction> {
-    Filter::regex(r".(.).(\1)")
-}
-
-pub fn is<T: Filterable>(value: T) -> Filter<T> {
-    Filter::new(value)
-}
-
-pub fn not<T: Filterable>(value: Filter<T>) -> Filter<T> {
-    Filter::not(value)
-}
-
-pub fn bet_range(range: StdRange<usize>) -> Filter<PokerAction> {
-    Filter::range(range)
-}
 
 pub trait Action:
     Clone + Debug + Hash + PartialEq + Eq + Into<ActionIndex> + IntoHotEncoding + Filterable
@@ -75,7 +21,13 @@ pub trait Action:
 
 /// Some default implementations to get us situated for goofspiel impl
 impl Action for u32 {}
-
+impl IntoHotEncoding for ActionIndex {
+    fn encoding(self, size : usize) -> HotEncoding {
+        let mut v = vec![false; size];
+        v[self as usize] = true;
+        v
+    }
+}
 pub type ActionFilter<A> = (Filter<A>, A);
 
 #[derive(Debug, Clone)]
@@ -155,7 +107,7 @@ impl<A: Filterable + Action> GameMapper<A> {
     }
 
     /// Create a GameMapper to operate a specific depth of the game
-    pub fn add_map(&mut self, mapper: Option<ActionMapper<A>>, depth: usize) {
+    pub fn update_depth(&mut self, mapper: Option<ActionMapper<A>>, depth: usize) {
         self.depth_specific_maps[depth] = mapper;
         // If there is a mapper, then we need to update the max encoding size
         self.max_encoding_size = 0;
@@ -182,6 +134,10 @@ impl<A: Filterable + Action> GameMapper<A> {
     pub fn map_actions(&self, actions: &Vec<A>, depth: usize) -> Vec<A> {
         // TODO: figure out what to do if functions map to two different groups
         //       right now it's taking a greedy approach
+        // TODO: perhaps its a good precondition to expect that 
+        //       for some action that is captured by a filter F
+        //       it maps to another action that is captured by F
+        //       would enforce legality of actions implicitly
         let mapper = &self.depth_specific_maps[depth];
         match mapper {
             Some(mapper) => actions
@@ -192,25 +148,33 @@ impl<A: Filterable + Action> GameMapper<A> {
         }
     }
 
-    pub fn encoding(&self, history: &Vec<A>) -> Vec<HotEncoding> {
+    fn map_index(&self, action: &A, depth: usize) -> ActionIndex {
+        let mapper = &self.depth_specific_maps[depth];
+        match mapper {
+            Some(mapper) => mapper.to_index(action.clone()),
+            None => action.clone().into(),
+        }
+    }
+
+    pub fn encode(&self, history: &Vec<A>) -> Vec<HotEncoding> {
         debug_assert!(history.len() <= self.recall_depth);
         let mut encodings = Vec::new();
         let max_depth = self.recall_depth;
 
         // Take last *depth* actions, map them to ActionIndex, and then encode them
-        for (index, action) in history.iter().rev().take(max_depth).rev().enumerate() {
-            let mapper = &self.depth_specific_maps[index];
-            let action_index = match mapper {
-                Some(mapper) => mapper.to_index(action.clone()),
-                None => action.clone().into(),
-            };
-            let mut encoding = action_index.encoding();
-            // Pad the end of any sparser encondings with dummy false values
+        for (depth, action) in history.iter().rev().take(max_depth).rev().enumerate() {
+            let action_index = self.map_index(action, depth);
+            let mut encoding = action_index.encoding(self.max_encoding_size);
+            // Pad the end of any sparser encodings with dummy false values
             encoding.resize(self.max_encoding_size, false);
 
             encodings.push(encoding);
         }
         encodings
+    }
+
+    pub fn encoding_size(&self) -> usize {
+        self.max_encoding_size
     }
 }
 
@@ -415,7 +379,7 @@ impl Filterable for PokerAction {}
 
 /// TODO: this is a dummy implemenation until we have full abstractions
 impl IntoHotEncoding for PokerAction {
-    fn encoding(self) -> HotEncoding {
+    fn encoding(self, size : usize ) -> HotEncoding {
         todo!()
     }
 }
