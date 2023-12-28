@@ -72,26 +72,20 @@ pub struct GoofspielState {
 
 impl GoofspielState {
 
+    fn terminal(&self) -> ActivePlayer<GoofspielAction>{
+        let delta = self.scores[0] - self.scores[1];
+        ActivePlayer::Terminal(match self.internal.scoring {
+            Scoring::Absolute => self.scores.as_ref().into(),
+            Scoring::ZeroSum => vec![delta, -delta],
+            Scoring::WinLoss => vec![delta.signum(), -delta.signum()],
+        })
+    }
+
     fn player_update(&mut self, action  : GoofspielAction)  {
         if let ActivePlayer::Player(player_num, _) = self.active_player() {
             let player_num = player_num as usize;
             self.cards[player_num].remove(action as usize);
-
-            let player1_cards = self.cards[1].iter().map(|x| x as u32).collect();
-            let player2_cards = self.cards[2].iter().map(|x| x as u32).collect::<Vec<_>>();
-            let distribution = Categorical::uniform(player2_cards); 
-
-
-            // Either advance to the next player or go to chance node
-            match player_num {
-                0 => self.active = ActivePlayer::Player(1, player1_cards),
-                1 => self.active = ActivePlayer::Chance(distribution), 
-                _ => panic!("Unsure how to handle player number {}", player_num)
-            }
-
-
             self.bets[player_num] = action;
-
             let betting_round_over = player_num == 1;
             if betting_round_over {
                 // If the betting round is over, 
@@ -107,22 +101,25 @@ impl GoofspielState {
                 // Implicitly discard the card if it's a tie
             }
 
-            // If the chance has no cards left
-            // then instead we set active player to terminal scoring state
-            match self.active {
-                ActivePlayer::Chance(ref cards) => {
-                    if cards.items().len() == 0 {
-                        let delta = self.scores[0] - self.scores[1];
-                        self.active = ActivePlayer::Terminal(match self.internal.scoring {
-                            Scoring::Absolute => self.scores.as_ref().into(),
-                            Scoring::ZeroSum => vec![delta, -delta],
-                            Scoring::WinLoss => vec![delta.signum(), -delta.signum()],
-                        })
-                    }
-                },
-                _ => ()
+            let player1_cards = self.cards[1].iter().map(|x| x as u32).collect();
+            let player2_cards = self.cards[2].iter().map(|x| x as u32).collect::<Vec<_>>();
+            let num_cards_remaining = player2_cards.len();
+
+            let mut distribution = None;
+            if num_cards_remaining > 0 {
+                distribution = Some(Categorical::uniform(player2_cards)); 
             }
 
+            // State machine logic determining the next player
+            match player_num {
+                0 => self.active = ActivePlayer::Player(1, player1_cards),
+                1 => self.active = match num_cards_remaining {
+                     1.. => ActivePlayer::Chance(distribution.unwrap()),
+                     0 => self.terminal(),
+                     _ => panic!("Invalid number of cards remaining")
+                }, 
+                _ => panic!("Unsure how to handle player number {}", player_num)
+            }
 
         } else {
             panic!("Player update called when active player is not a regular player")

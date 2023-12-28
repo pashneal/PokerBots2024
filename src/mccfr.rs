@@ -77,7 +77,10 @@ impl <A: Action, S : State<A>> MCCFR<A, S> {
     ) -> (f64, f64, f64) {
         self.nodes_traversed += 1;
         match self.game.active_player() {
-            ActivePlayer::Terminal(ref payoffs) => (payoffs[updated_player], 1.0, p_sample),
+            ActivePlayer::Terminal(ref payoffs) => {
+                (payoffs[updated_player], 1.0, p_sample)
+
+            },
             ActivePlayer::Chance(ref cat) => {
                 // Sample an action from the space of random chance
                 // then map it to our internal action space
