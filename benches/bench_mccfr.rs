@@ -19,6 +19,6 @@ fn bench_os_mccfr_goofspiel4(b: &mut Bencher) {
 fn bench_os_mccfr_goofspiel5(b: &mut Bencher) {
     let g = Goofspiel::new(5, goofspiel::Scoring::ZeroSum);
     let mut mc = MCCFR::new(g);
-    let mut rng = SmallRng::seed_from_u64(2);
+    let mut rng = SmallRng::seed_from_u64(1);
     b.iter(|| mc.run_iterations(1, 0.6, &mut rng));
 }

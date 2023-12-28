@@ -65,6 +65,7 @@ impl<T> Categorical<T> {
         let is: Vec<T> = items.into();
         assert_eq!(ps.len(), is.len());
         debug_assert!((ps.iter().sum::<f64>() - 1.0) < 1e-3);
+        println!("ps: {:?}", ps);
         let wi = WeightedIndex::new(&ps).expect("invalid distribution");
         Categorical(ps, wi, is)
     }

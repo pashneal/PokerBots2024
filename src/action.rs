@@ -72,10 +72,9 @@ pub fn bet_range(range : StdRange<usize>) -> Filter<PokerAction> {
     Filter::range(range)
 }
 
-pub trait Action: Clone + Debug + Hash + PartialEq + Eq + IntoHotEncoding {}
+pub trait Action: Clone + Debug + Hash + PartialEq + Eq + Into<ActionIndex> + IntoHotEncoding + Filterable {}
 
 /// Some default implementations to get us situated for goofspiel impl
-impl Action for i32 {}
 impl Action for u32 {}
 
 pub type ActionFilter<A> = (Filter<A>, A);
@@ -133,7 +132,7 @@ pub struct GameMapper<A: Filterable + Action> {
     max_encoding_size: usize,
 }
 
-impl<A: Filterable + Action + Into<ActionIndex>> GameMapper<A> {
+impl<A: Filterable + Action > GameMapper<A> {
     ///  Create a GameMapper with no default mapping (passes all actions through)
     ///  recall_depth determines how many states will be
     ///  outputted by a HotEncoding
@@ -173,13 +172,21 @@ impl<A: Filterable + Action + Into<ActionIndex>> GameMapper<A> {
         }
     }
 
-    fn map(&self, actions: Vec<A>, depth: usize) -> Vec<A> {
+    pub fn map_action(&self, action: A, depth: usize) -> A {
+        let mapper = &self.depth_specific_maps[depth];
+        match mapper {
+            Some(mapper) => mapper.map(action),
+            None => action,
+        }
+    }
+
+    pub fn map_actions(&self, actions: &Vec<A>, depth: usize) -> Vec<A> {
         // TODO: figure out what to do if functions map to two different groups
         //       right now it's taking a greedy approach
         let mapper = &self.depth_specific_maps[depth];
         match mapper {
             Some(mapper) => actions.iter().map(|action| mapper.map(action.clone())).collect(),
-            None => actions,
+            None => actions.clone(),
         }
 
     }
@@ -367,7 +374,18 @@ pub enum PokerAction {
     Check,
     Deal(Hand),
 }
-impl Action for PokerAction {}
+impl Into<u32> for PokerAction {
+    fn into(self) -> u32 {
+        match self {
+            PokerAction::Fold => 0,
+            PokerAction::Bet(n) => n,
+            PokerAction::Check => 0,
+            PokerAction::Deal(hand) => 0,
+        }
+    }
+}
+impl Action for PokerAction{}
+
 impl Parsable for PokerAction {
     fn to_string(&self) -> Option<String> {
         match self {

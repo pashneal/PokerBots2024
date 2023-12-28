@@ -1,8 +1,11 @@
+/// Implementation of Goofspiel, a simpler card game. Very useful for
+/// figuring out how to implement a game in this framework.
+
 use crate::action::{HotEncoding, IntoHotEncoding};
 use crate::constants::HOT_ENCODING_SIZE;
-/// Implementation of Goofspiel, a simple card game. Very useful for
-/// figuring out how to implement a Game trait
-use crate::{ActivePlayer, Categorical, Game, HistoryInfo, Utility};
+use crate::visibility::Visibility;
+use crate::state::{ActivePlayer, State};
+use crate::{ Categorical, Utility};
 use bit_set::BitSet;
 
 #[derive(Debug, Clone, PartialEq, Eq, Copy, Hash)]
@@ -22,9 +25,8 @@ impl IntoHotEncoding for i32 {
         v
     }
 }
-
 #[derive(Debug, Clone, PartialEq)]
-pub struct Goofspiel {
+struct Goofspiel {
     /// Number of cards.
     pub cards: usize,
     /// Final scoring type.
@@ -54,162 +56,130 @@ impl Goofspiel {
     }
 }
 
+pub type GoofspielAction = u32;
+
 /// Players are p0 and p1, p2 is chance
 #[derive(Clone, Debug)]
-pub struct State {
+pub struct GoofspielState {
     cards: [BitSet; 3],
     scores: [f64; 2],
+    active: ActivePlayer<GoofspielAction>,
+    bets: [GoofspielAction;2],
+    internal : Goofspiel, // [Neal] This is poor design but it's 
+                          // because I don't really want to re-implement the above
+                          // but just re-use the existing implementation
 }
 
+impl GoofspielState {
 
-impl Game for Goofspiel {
-    type State = State;
-    type Observation = i32;
-    type Action = u32;
+    fn player_update(&mut self, action  : GoofspielAction)  {
+        if let ActivePlayer::Player(player_num, _) = self.active_player() {
+            let player_num = player_num as usize;
+            self.cards[player_num].remove(action as usize);
 
-    fn players(&self) -> usize {
-        2
-    }
+            let player1_cards = self.cards[1].iter().map(|x| x as u32).collect();
+            let player2_cards = self.cards[2].iter().map(|x| x as u32).collect::<Vec<_>>();
+            let distribution = Categorical::uniform(player2_cards); 
 
-    fn initial_state(&self) -> (Self::State, ActivePlayer<Self>) {
-        let state = State {
-            cards: [
-                self.card_set.clone(),
-                self.card_set.clone(),
-                self.card_set.clone(),
-            ],
-            scores: [0.0, 0.0],
-        };
-        let active = ActivePlayer::Chance(Categorical::uniform(
-            self.card_set.iter().map(|x| x as u32).collect::<Vec<_>>(),
-        ));
-        (state, active)
-    }
 
-    fn update_state(
-        &self,
-        hist: &HistoryInfo<Self>,
-        action: &Self::Action,
-    ) -> (
-        Self::State,
-        ActivePlayer<Self>,
-        Vec<Option<Self::Observation>>,
-    ) {
-        let history = &hist.history;
-        // p=0, p=1 are players p=2 is chance
-        let len = history.len();
-        let prev_player = (history.len() + 2) % 3;
-        let next_player = (history.len()) % 3;
-        let mut obs = None;
-        // Play the selected card, update state
-        let mut state = hist.state.clone();
-        state.cards[prev_player].remove(*action as usize);
-        // Score update and Obs
-        if prev_player == 1 {
-            let bet = self.values[(history[len - 2] - 1) as usize];
-            let winner = ((history[len - 1] as i32) - (*action as i32)).signum();
-            if winner == 1 {
-                state.scores[0] += bet;
+            // Either advance to the next player or go to chance node
+            match player_num {
+                0 => self.active = ActivePlayer::Player(1, player1_cards),
+                1 => self.active = ActivePlayer::Chance(distribution), 
+                _ => panic!("Unsure how to handle player number {}", player_num)
             }
-            if winner == -1 {
-                state.scores[1] += bet;
+
+
+            self.bets[player_num] = action;
+
+            let betting_round_over = player_num == 1;
+            if betting_round_over {
+                // If the betting round is over, 
+                // then we need to give the biggest better the points!
+                let card_value = self.internal.values[(action - 1) as usize];
+                let winner = (self.bets[0] as i32 - self.bets[1] as i32).signum();
+                if winner == 1 {
+                    self.scores[0] += card_value;
+                }
+                if winner == -1 {
+                    self.scores[1] += card_value;
+                }
+                // Implicitly discard the card if it's a tie
             }
-            obs = Some(winner);
-        }
-        // Observe public card
-        if prev_player == 2 {
-            obs = Some(*action as i32);
-        }
-        // Terminal reached or active player
-        let active = if len + 1 == self.cards * 3 {
-            let d = state.scores[0] - state.scores[1];
-            ActivePlayer::Terminal(match self.scoring {
-                Scoring::Absolute => state.scores.as_ref().into(),
-                Scoring::ZeroSum => vec![d, -d],
-                Scoring::WinLoss => vec![d.signum(), -d.signum()],
-            })
+
+            // If the chance has no cards left
+            // then instead we set active player to terminal scoring state
+            match self.active {
+                ActivePlayer::Chance(ref cards) => {
+                    if cards.items().len() == 0 {
+                        let delta = self.scores[0] - self.scores[1];
+                        self.active = ActivePlayer::Terminal(match self.internal.scoring {
+                            Scoring::Absolute => self.scores.as_ref().into(),
+                            Scoring::ZeroSum => vec![delta, -delta],
+                            Scoring::WinLoss => vec![delta.signum(), -delta.signum()],
+                        })
+                    }
+                },
+                _ => ()
+            }
+
+
         } else {
-            let acts = state.cards[next_player].iter().map(|x| x as u32).collect();
-            if next_player == 2 {
-                ActivePlayer::Chance(Categorical::uniform(acts))
-            } else {
-                ActivePlayer::Player(next_player as u32, acts)
-            }
-        };
-        // Return new info triplet
-        (state, active, vec![obs; 3])
+            panic!("Player update called when active player is not a regular player")
+        } 
+    }
+
+    fn chance_update(&mut self, action  : GoofspielAction)  {
+        // Choose a card and remove the chosen card from the chance pool
+        self.cards[2].remove(action as usize);
+
+        // Loop to player 0 
+        // allowing them to play cards not already chosen
+        let available_cards = self.cards[0].iter().map(|x| x as u32).collect();
+        self.active = ActivePlayer::Player(0, available_cards);
     }
 }
 
-#[cfg(test)]
-mod test {
-    use super::{ActivePlayer, Categorical, Game, Goofspiel, Scoring};
-    use crate::Observation::*;
+impl State<GoofspielAction> for GoofspielState {
+    fn new() -> Self {
+        let internal = Goofspiel::new(5, Scoring::ZeroSum);
+        let cards = [
+            internal.card_set.clone(),
+            internal.card_set.clone(),
+            internal.card_set.clone(),
+        ];
+        let scores = [0.0, 0.0];
+        let active = ActivePlayer::Chance(Categorical::uniform(
+            internal.card_set.iter().map(|x| x as u32).collect::<Vec<_>>(),
+        ));
+        let bets = [0, 0];
+        GoofspielState {
+            cards,
+            scores,
+            active,
+            bets,
+            internal,
+        }
+    }
 
-    #[test]
-    fn test_example_play() {
-        for (p0, p1, scoring) in &[
-            (1.0, 5.0, Scoring::Absolute),
-            (-1.0, 1.0, Scoring::WinLoss),
-            (-4.0, 4.0, Scoring::ZeroSum),
-        ] {
-            let g = Goofspiel::new(4, *scoring);
-            let mut hist = g.start();
-            assert_eq!(
-                hist.active,
-                ActivePlayer::Chance(Categorical::uniform(vec![1, 2, 3, 4]))
-            );
-            for a in &[2, 1, 2, 3, 2, 4, 4, 3, 3, 1, 4, 1] {
-                hist = g.play_value(&hist, a);
-            }
-            assert_eq!(hist.active, ActivePlayer::Terminal(vec![*p0, *p1]));
-            assert_eq!(
-                hist.observations[0],
-                vec![
-                    Public(2),
-                    Private(1),
-                    Public(-1),
-                    Public(3),
-                    Private(2),
-                    Public(-1),
-                    Public(4),
-                    Private(3),
-                    Public(0),
-                    Public(1),
-                    Private(4),
-                    Public(1)
-                ]
-            );
-            assert_eq!(
-                hist.observations[1],
-                vec![
-                    Public(2),
-                    Private(2),
-                    Public(-1),
-                    Public(3),
-                    Private(4),
-                    Public(-1),
-                    Public(4),
-                    Private(3),
-                    Public(0),
-                    Public(1),
-                    Private(1),
-                    Public(1)
-                ]
-            );
-            assert_eq!(
-                hist.observations[2],
-                vec![
-                    Public(2),
-                    Public(-1),
-                    Public(3),
-                    Public(-1),
-                    Public(4),
-                    Public(0),
-                    Public(1),
-                    Public(1)
-                ]
-            );
+    fn active_player(&self) -> ActivePlayer<GoofspielAction> {
+        self.active.clone()
+    }
+
+    fn get_visibility(&self, action: &GoofspielAction) -> Visibility<GoofspielAction> {
+        match self.active_player() {
+            ActivePlayer::Terminal(_) => panic!("Terminal state has no visibility"),
+            ActivePlayer::Player(_, _) => Visibility::Private(action.clone()),
+            ActivePlayer::Chance(_) => Visibility::Public(action.clone()),
+        }
+    }
+
+    fn update(&mut self, action: GoofspielAction) {
+        match self.active_player() {
+            ActivePlayer::Terminal(_) => panic!("Terminal state cannot be updated"), 
+            ActivePlayer::Player(_, _) => self.player_update(action),
+            ActivePlayer::Chance(_) => self.chance_update(action),
         }
     }
 }
+

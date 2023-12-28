@@ -2,6 +2,8 @@ extern crate bit_set;
 extern crate hashbrown;
 extern crate rand;
 
+mod state;
+mod visibility;
 mod action;
 mod constants;
 mod distribution;
@@ -15,10 +17,7 @@ pub use self::action::{HotEncoding, IntoHotEncoding};
 pub use self::constants::HOT_ENCODING_SIZE;
 pub use self::distribution::Categorical;
 pub use self::game::Game;
-pub use self::goofspiel::Goofspiel;
-pub use self::history::{ActivePlayer, HistoryInfo, Observation, PlayerObservation};
-pub use self::mccfr::{MCCFR, RegretStrategy};
-pub use self::strategy::{Strategy, UniformStrategy};
+pub use self::mccfr::MCCFR;
 
 pub type ActionIndex = u32;
 
