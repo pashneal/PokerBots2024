@@ -29,12 +29,13 @@ use crate::action::*;
 
 pub fn test_abstractions() -> GameMapper<GoofspielAction> {
     // Set up our filters
-    let is_high =  card_range(4..); 
+    let is_very_high = card_range(11..=20);
+    let is_high =  card_range(4..=10); 
     let is_mid = is(2).or(is(3)); 
 
     let high  = is_high.clone();
     let mid = is_mid.clone();
-    let is_low = not(high).and(not(mid));  // You can compose filters!! 
+    let is_low = not(high).and(not(mid)).and(not(is_very_high));  // You can compose filters!! 
 
     // Action level mapping 
     let mut action_mapper =  ActionMapper::new();

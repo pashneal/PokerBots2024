@@ -1,7 +1,7 @@
 use crate::constants::*;
 use std::fmt::Debug;
 use std::hash::Hash;
-pub use std::ops::RangeFrom as StdRange;
+pub use std::ops::RangeInclusive as StdRange;
 
 pub type ActionIndex = u32;
 /// Represents a possible action or observation in the game
@@ -134,10 +134,11 @@ impl<A: Filterable + Action> GameMapper<A> {
     pub fn map_actions(&self, actions: &Vec<A>, depth: usize) -> Vec<A> {
         // TODO: figure out what to do if functions map to two different groups
         //       right now it's taking a greedy approach
-        // TODO: perhaps its a good precondition to expect that 
-        //       for some action that is captured by a filter F
-        //       it maps to another action that is captured by F
-        //       would enforce legality of actions implicitly
+        // TODO: perhaps its a good precondition (checked by debug asserts)
+        //       to expect that for some action that is captured by a filter F
+        //       it maps to another action from the original legal set,  
+        //       which is also captured by F, would enforce legality of actions,
+        //       implicitly and solves the above issue
         let mapper = &self.depth_specific_maps[depth];
         match mapper {
             Some(mapper) => actions
@@ -443,7 +444,7 @@ pub struct RegexQuery {
 
 #[derive(Debug, Clone)]
 pub struct RangeQuery {
-    pub range: StdRange<usize>,
+    pub range: StdRange<usize>
 }
 
 #[derive(Debug, Clone)]
@@ -491,6 +492,7 @@ where
 
     pub fn range(range: StdRange<usize>) -> Self {
         Filter::BaseCase(Primitive::Range(RangeQuery { range }))
+
     }
 
     pub fn not(self) -> Self {
