@@ -137,8 +137,8 @@ impl<A: Filterable + Action> GameMapper<A> {
         // TODO: perhaps its a good precondition (checked by debug asserts)
         //       to expect that for some action that is captured by a filter F
         //       it maps to another action from the original legal set,  
-        //       which is also captured by F, would enforce legality of actions,
-        //       implicitly and solves the above issue
+        //       which is also captured by F, would enforce legality of actions
+        //       implicitly
         let mapper = &self.depth_specific_maps[depth];
         match mapper {
             Some(mapper) => actions
