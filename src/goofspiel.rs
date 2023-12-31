@@ -16,7 +16,7 @@ pub enum Scoring {
 const MIN_SCORE: i32 = -13;
 
 impl IntoHotEncoding for i32 {
-    fn encoding(self, size : usize) -> HotEncoding {
+    fn encoding(self, size: usize) -> HotEncoding {
         let score = self - MIN_SCORE;
         let mut v = vec![false; size];
         v[score as usize] = true;
@@ -139,7 +139,7 @@ impl GoofspielState {
 
 impl State<GoofspielAction> for GoofspielState {
     fn new() -> Self {
-        let internal = Goofspiel::new(5, Scoring::ZeroSum);
+        let internal = Goofspiel::new(3, Scoring::ZeroSum);
         let cards = [
             internal.card_set.clone(),
             internal.card_set.clone(),

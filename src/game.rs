@@ -9,12 +9,18 @@ use crate::action::Action;
 use crate::state::ActivePlayer;
 
 #[derive(Clone, Debug)]
-pub struct Game<A: Action, S: State<A>> {
+pub struct Game<A: Action, S: State<A>>
+where
+    S: Clone,
+{
     visibility_tracker: VisibilityTracker<A>,
     state: S,
 }
 
-impl<A: Action, S: State<A>> Game<A, S> {
+impl<A: Action, S: State<A>> Game<A, S>
+where
+    S: Clone,
+{
     pub fn num_regular_players(&self) -> usize {
         NUM_REGULAR_PLAYERS
     }

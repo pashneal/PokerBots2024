@@ -40,7 +40,7 @@ impl<T> Categorical<T> {
     }
 
     #[inline]
-    pub fn rample_ref_pair_rng<'a, R: Rng>(&'a self, rng: &mut R) -> (f64, &'a T) {
+    pub fn sample_ref_pair_rng<'a, R: Rng>(&'a self, rng: &mut R) -> (f64, &'a T) {
         let idx = self.1.sample(rng);
         (self.0[idx], &self.2[idx])
     }
@@ -89,9 +89,9 @@ impl<T: Clone> Categorical<T> {
     }
 
     #[inline]
-    pub fn sample_pair_rng<'a, R: Rng>(&'a self, rng: &mut R) -> (f64, T) {
+    pub fn sample_and_prob<'a, R: Rng>(&'a self, rng: &mut R) -> (T, f64) {
         let idx = self.1.sample(rng);
-        (self.0[idx], self.2[idx].clone())
+        (self.2[idx].clone(), self.0[idx])
     }
 }
 

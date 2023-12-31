@@ -9,10 +9,8 @@ pub type ActionIndex = u32;
 pub type HotEncoding = Vec<bool>;
 
 pub trait IntoHotEncoding {
-    fn encoding(self, size : usize) -> HotEncoding;
+    fn encoding(self, size: usize) -> HotEncoding;
 }
-
-
 
 pub trait Action:
     Clone + Debug + Hash + PartialEq + Eq + Into<ActionIndex> + IntoHotEncoding + Filterable
@@ -22,7 +20,7 @@ pub trait Action:
 /// Some default implementations to get us situated for goofspiel impl
 impl Action for u32 {}
 impl IntoHotEncoding for ActionIndex {
-    fn encoding(self, size : usize) -> HotEncoding {
+    fn encoding(self, size: usize) -> HotEncoding {
         let mut v = vec![false; size];
         v[self as usize] = true;
         v
@@ -124,6 +122,8 @@ impl<A: Filterable + Action> GameMapper<A> {
     }
 
     pub fn map_action(&self, action: A, depth: usize) -> A {
+        // TODO: since this is a pure function we can memoize it
+        //       for speed improvements
         let mapper = &self.depth_specific_maps[depth];
         match mapper {
             Some(mapper) => mapper.map(action),
@@ -136,9 +136,10 @@ impl<A: Filterable + Action> GameMapper<A> {
         //       right now it's taking a greedy approach
         // TODO: perhaps its a good precondition (checked by debug asserts)
         //       to expect that for some action that is captured by a filter F
-        //       it maps to another action from the original legal set,  
+        //       it maps to another action from the original legal set,
         //       which is also captured by F, would enforce legality of actions
-        //       implicitly
+        //       and consistency of groups implicitly
+        // TODO: bruh this doesn't reduce the action space lol
         let mapper = &self.depth_specific_maps[depth];
         match mapper {
             Some(mapper) => actions
@@ -380,7 +381,7 @@ impl Filterable for PokerAction {}
 
 /// TODO: this is a dummy implemenation until we have full abstractions
 impl IntoHotEncoding for PokerAction {
-    fn encoding(self, size : usize ) -> HotEncoding {
+    fn encoding(self, size: usize) -> HotEncoding {
         todo!()
     }
 }
@@ -444,7 +445,7 @@ pub struct RegexQuery {
 
 #[derive(Debug, Clone)]
 pub struct RangeQuery {
-    pub range: StdRange<usize>
+    pub range: StdRange<usize>,
 }
 
 #[derive(Debug, Clone)]
@@ -492,7 +493,6 @@ where
 
     pub fn range(range: StdRange<usize>) -> Self {
         Filter::BaseCase(Primitive::Range(RangeQuery { range }))
-
     }
 
     pub fn not(self) -> Self {

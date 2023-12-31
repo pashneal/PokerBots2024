@@ -8,9 +8,9 @@ use std::fs::File;
 use std::io::Write;
 
 pub type InformationSet<A> = Vec<A>;
-pub type StrategyDistribution = Vec<f64>;
+pub type PolicyDistribution = Vec<f64>;
 pub type RegretDistribution = Vec<f64>;
-pub type Mapping<A> = HashMap<InformationSet<A>, (StrategyDistribution, RegretDistribution)>;
+pub type Mapping<A> = HashMap<InformationSet<A>, (PolicyDistribution, RegretDistribution)>;
 
 #[derive(Clone, Debug)]
 pub struct RegretStrategy<A: Action> {
@@ -33,13 +33,22 @@ impl<A: Action> RegretStrategy<A> {
     pub fn get(
         &self,
         info_set: &InformationSet<A>,
-    ) -> Option<&(StrategyDistribution, RegretDistribution)> {
+    ) -> Option<&(PolicyDistribution, RegretDistribution)> {
         self.information_sets.get(info_set)
     }
 
-    pub fn save_table_json(&self, file_name: &str, action_mapper : &GameMapper<A>) {
+    pub fn regrets(&self, info_set: &InformationSet<A>) -> Option<&RegretDistribution> {
+        self.information_sets.get(info_set).map(|(_, r)| r)
+    }
+
+    pub fn policy(&self, info_set: &InformationSet<A>) -> Option<&PolicyDistribution> {
+        self.information_sets.get(info_set).map(|(p, _)| p)
+    }
+
+    pub fn save_table_json(&self, file_name: &str, action_mapper: &GameMapper<A>) {
         let mut file = File::create(file_name).unwrap();
         let mut table = Vec::new();
+        println!("Saving table to {}", file_name);
         for (information_set, (strategy, _)) in &self.information_sets {
             let info_set = to_encodings(information_set.clone(), action_mapper);
             let info_set = to_int(info_set);
@@ -54,6 +63,8 @@ impl<A: Action> RegretStrategy<A> {
                 continue;
             }
             let strategy = normalized(strategy.clone());
+            print!("Saving {:?}", information_set);
+            println!(" with {:?}", strategy);
             table.push((info_set, strategy.clone()));
         }
         let json = serde_json::to_string(&table).unwrap();
@@ -69,11 +80,14 @@ impl<A: Action> RegretStrategy<A> {
         d_strat: Option<&[f64]>, // [Neal] Observed current strategy at a terminal history TODO: ?
     ) {
         self.updates += 1;
+        //println!("Updating strategy for {:?}", info_set);
+        //println!("d_reg: {:?}", d_reg);
+        //println!("d_strat: {:?}", d_strat);
         let len = d_reg
             .or(d_strat)
             .expect("Pass at least one of d_reg, d_strat to update")
             .len();
-        let entry = self.information_sets.entry(info_set);
+        let entry = self.information_sets.entry(info_set.clone());
         let val = entry.or_insert_with(|| (vec![0.0; len], vec![0.0; len]));
         if let Some(d) = d_strat {
             if len != d.len() {
@@ -95,7 +109,7 @@ impl<A: Action> RegretStrategy<A> {
     }
 }
 
-pub fn to_encodings<A : Action>(actions: Vec<A>,  mapper: &GameMapper<A>) -> Vec<HotEncoding> {
+pub fn to_encodings<A: Action>(actions: Vec<A>, mapper: &GameMapper<A>) -> Vec<HotEncoding> {
     mapper.encode(&actions)
 }
 
