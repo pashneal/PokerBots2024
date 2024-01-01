@@ -63,8 +63,6 @@ impl<A: Action> RegretStrategy<A> {
                 continue;
             }
             let strategy = normalized(strategy.clone());
-            print!("Saving {:?}", information_set);
-            println!(" with {:?}", strategy);
             table.push((info_set, strategy.clone()));
         }
         let json = serde_json::to_string(&table).unwrap();
