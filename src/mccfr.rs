@@ -107,8 +107,9 @@ impl<A: Action, S: State<A>> MCCFR<A, S> {
                 let length = actions.len() as f64;
                 let history = self.game.history(player_num);
                 let strategy = &mut self.strategies[player_num];
+
                 let mut regrets = match strategy.regrets(&history) {
-                    Some(r) => regret_matching(r),
+                    Some(r) => regret_matching(&r),
                     None => vec![1.0 / length; actions.len()],
                 };
 

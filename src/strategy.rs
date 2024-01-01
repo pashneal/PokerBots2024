@@ -2,7 +2,8 @@ use crate::action::Action;
 use crate::action::{GameMapper, HotEncoding, IntoHotEncoding};
 use crate::state::State;
 use crate::{Categorical, Game};
-use std::collections::HashMap;
+use dashmap::DashMap;
+
 
 use std::fs::File;
 use std::io::Write;
@@ -10,13 +11,15 @@ use std::io::Write;
 pub type InformationSet<A> = Vec<A>;
 pub type PolicyDistribution = Vec<f64>;
 pub type RegretDistribution = Vec<f64>;
-pub type Mapping<A> = HashMap<InformationSet<A>, (PolicyDistribution, RegretDistribution)>;
+pub type PolicyMap<A> = DashMap<InformationSet<A>, PolicyDistribution>;
+pub type RegretMap<A> = DashMap<InformationSet<A>, RegretDistribution>;
 
 #[derive(Clone, Debug)]
 pub struct RegretStrategy<A: Action> {
     pub updates: usize,
     pub iterations: usize,
-    information_sets: Mapping<A>,
+    pub policy_map: PolicyMap<A>,
+    pub regret_map: RegretMap<A>,
 }
 
 impl<A: Action> Default for RegretStrategy<A> {
@@ -24,32 +27,30 @@ impl<A: Action> Default for RegretStrategy<A> {
         RegretStrategy {
             iterations: 0,
             updates: 0,
-            information_sets: Default::default(),
+            policy_map : DashMap::new(),
+            regret_map : DashMap::new(),
         }
     }
 }
 
 impl<A: Action> RegretStrategy<A> {
-    pub fn get(
-        &self,
-        info_set: &InformationSet<A>,
-    ) -> Option<&(PolicyDistribution, RegretDistribution)> {
-        self.information_sets.get(info_set)
-    }
 
-    pub fn regrets(&self, info_set: &InformationSet<A>) -> Option<&RegretDistribution> {
-        self.information_sets.get(info_set).map(|(_, r)| r)
+    pub fn regrets(&self, information_set: &InformationSet<A>) -> Option<RegretDistribution> {
+        // Hmmmmm??
+        // TODO: speeeeeeeeeeeeeeeeed
+        self.regret_map.get(information_set).map(|r| (*r).clone()).map(|v| Vec::from(v))
     }
-
-    pub fn policy(&self, info_set: &InformationSet<A>) -> Option<&PolicyDistribution> {
-        self.information_sets.get(info_set).map(|(p, _)| p)
+    pub fn policy(&self, information_set: &InformationSet<A>) -> Option<PolicyDistribution> {
+        // Hmmmmm??
+        // TODO: speeeeeeeeeeeeeeeeed
+        self.policy_map.get(information_set).map(|r| (*r).clone()).map(|v| Vec::from(v))
     }
-
     pub fn save_table_json(&self, file_name: &str, action_mapper: &GameMapper<A>) {
         let mut file = File::create(file_name).unwrap();
         let mut table = Vec::new();
         println!("Saving table to {}", file_name);
-        for (information_set, (strategy, _)) in &self.information_sets {
+        for reference in self.policy_map.iter() {
+            let (information_set, strategy) = reference.pair();
             let info_set = to_encodings(information_set.clone(), action_mapper);
             let info_set = to_int(info_set);
             let info_set = to_binary(info_set);
@@ -85,25 +86,28 @@ impl<A: Action> RegretStrategy<A> {
             .or(d_strat)
             .expect("Pass at least one of d_reg, d_strat to update")
             .len();
-        let entry = self.information_sets.entry(info_set.clone());
-        let val = entry.or_insert_with(|| (vec![0.0; len], vec![0.0; len]));
         if let Some(d) = d_strat {
+
+            let entry = self.policy_map.entry(info_set.clone());
+            let mut val = entry.or_insert_with(|| vec![0.0; len]);
             if len != d.len() {
                 panic!("Passed d_reg and d_strat must have same length.")
             }
-            for (ve, de) in val.0.iter_mut().zip(d) {
+            for (ve, de) in val.iter_mut().zip(d) {
                 *ve += de;
             }
         }
         if let Some(d) = d_reg {
-            for (ve, de) in val.1.iter_mut().zip(d) {
+            let entry = self.regret_map.entry(info_set.clone());
+            let mut val = entry.or_insert_with(|| vec![0.0; len]);
+            for (ve, de) in val.iter_mut().zip(d) {
                 *ve += de;
             }
         }
     }
 
     pub fn size(&self) -> usize {
-        self.information_sets.len()
+        self.policy_map.len()
     }
 }
 
