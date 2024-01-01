@@ -61,6 +61,28 @@ impl<A: Action, S: State<A>> MCCFR<A, S> {
         }
     }
 
+    /// [Neal] Run the MCCFR iterations as specificed
+    pub fn run_iterations<R: Rng>(&mut self, iterations: usize, epsilon: f64, rng: &mut R) {
+        self.exploration = epsilon;
+        for i in 0..iterations {
+            for player in 0..self.game.num_regular_players() {
+                self.strategies[player].iterations += 1;
+                self.game = Game::<_, _>::new();
+                self.run_averaging_iteration(rng, player, 0, 1.0);
+                //self.run_iteration(rng, player, 1.0, 1.0, 1.0, epsilon, 0);
+            }
+            self.iterations += 1;
+            if i % 100_000 == 0 {
+                println!(
+                    "Iteration: {}, Nodes Traversed: {}, strategies[0] size: {}",
+                    self.iterations,
+                    self.nodes_traversed,
+                    self.strategies[0].size()
+                );
+            }
+        }
+    }
+
     pub fn run_averaging_iteration<R: Rng>(
         &mut self,
         rng: &mut R,
@@ -76,9 +98,6 @@ impl<A: Action, S: State<A>> MCCFR<A, S> {
             ActivePlayer::Chance(actions) => {
                 let (action, _) = actions.sample_and_prob(rng);
                 let mut action = self.game_mapper.map_action(action, depth);
-                if actions.items().len() == 3 {
-                    action = actions.items()[2].clone();
-                }
                 self.game.play(action);
                 self.run_averaging_iteration(rng, updated_player, depth + 1, q)
             }
@@ -159,109 +178,6 @@ impl<A: Action, S: State<A>> MCCFR<A, S> {
         }
     }
 
-    /// The specific math associated with the MCCFR algorithm,
-    /// change here if you'd like to update the algo
-    /// returns (utility, p_tail, p_sample_leaf)
-    fn run_iteration<R: Rng>(
-        &mut self,
-        rng: &mut R,
-        updated_player: usize,
-        p_reach_updated: f64,
-        p_reach_others: f64,
-        p_sample: f64,
-        epsilon: f64,
-        depth: usize,
-    ) -> (f64, f64, f64) {
-        self.nodes_traversed += 1;
-        match self.game.active_player() {
-            ActivePlayer::Terminal(ref payoffs) => (payoffs[updated_player], 1.0, p_sample),
-            ActivePlayer::Chance(ref cat) => {
-                // Sample an action from the space of random chance
-                // then map it to our internal action space
-                let action = cat.sample_ref_rng(rng).clone();
-                let action = self.game_mapper.map_action(action, depth);
-                self.game.play(action);
-
-                self.run_iteration(
-                    rng,
-                    updated_player,
-                    p_reach_updated,
-                    p_reach_others,
-                    p_sample,
-                    epsilon,
-                    depth + 1,
-                )
-            }
-            ActivePlayer::Player(player, ref actions) => {
-                let player = player as usize;
-                let actions = self.game_mapper.map_actions(actions, depth);
-                let n = actions.len();
-                let epsilon = if player == updated_player {
-                    epsilon
-                } else {
-                    0.0
-                };
-                let history = self.game.history(player);
-                let regret: Option<_> = self.strategies[player].get(&history).map(|e| &e.1);
-                // Use CFR+ regret matching instead of vanilla regret matching
-                let dist = match regret {
-                    Some(r) => regret_matching(r),
-                    None => vec![1.0 / n as f64; n],
-                };
-
-                let a_sample = if rng.sample::<f64, _>(rand::distributions::Standard) < epsilon {
-                    rng.gen_range(0, n)
-                } else {
-                    crate::distribution::sample_weighted(&dist, rng)
-                };
-                let p_dist = dist[a_sample];
-                let p_eps = epsilon / (n as f64) + (1.0 - epsilon) * p_dist;
-
-                let action = actions[a_sample].clone();
-                self.game.play(action);
-                if player == updated_player {
-                    let (payoff, p_tail, p_sample_leaf) = self.run_iteration(
-                        rng,
-                        updated_player,
-                        p_reach_updated * p_dist,
-                        p_reach_others,
-                        p_sample * p_eps,
-                        epsilon,
-                        depth + 1,
-                    );
-
-                    let mut delta_regret = vec![0.0; n];
-                    let u = payoff * p_reach_others / p_sample_leaf;
-                    for action_index in 0..n {
-                        if action_index == a_sample {
-                            delta_regret[action_index] = u * (p_tail - p_tail * p_dist);
-                        } else {
-                            delta_regret[action_index] = -u * p_tail * p_dist;
-                        }
-                    }
-
-                    self.strategies[player].update(history.clone(), Some(&delta_regret), None);
-                    (payoff, p_tail * p_dist, p_sample_leaf)
-                } else {
-                    let (payoff, p_tail, p_sample_leaf) = self.run_iteration(
-                        rng,
-                        updated_player,
-                        p_reach_updated,
-                        p_reach_others * p_dist,
-                        p_sample * p_eps,
-                        epsilon,
-                        depth + 1,
-                    );
-                    let mut distribution = dist;
-                    distribution.iter_mut().for_each(|v| {
-                        *v *= p_reach_updated / p_sample_leaf;
-                    });
-                    self.strategies[player].update(history.clone(), None, Some(&distribution));
-                    (payoff, p_tail * p_dist, p_sample_leaf)
-                }
-            }
-        }
-    }
 }
 
 /// Average sampling used in line with this paper:
