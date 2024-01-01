@@ -51,7 +51,7 @@ pub fn test_abstractions() -> GameMapper<GoofspielAction> {
 }
 
 pub fn main() -> () {
-    let g = Game::<GoofspielAction, GoofspielState>::new();
+    //let g = Game::<GoofspielAction, GoofspielState>::new();
 
     //let mut mc = MCCFR::new(g);
     //mc.with_game_mapper(test_abstractions());
@@ -68,3 +68,4 @@ pub fn main() -> () {
 
     mc.write_to("kuhn_poker");
 }
+

@@ -45,7 +45,7 @@ impl<A: Action, S: State<A>> MCCFR<A, S> {
             nodes_traversed: 0,
             strategies: s,
             game_mapper: GameMapper::new(None),
-            bonus : 0.00,
+            bonus : 0.00,  // Set to 0.0 and threshold to 1.0 for MCCFR Outcome Sampling
             exploration : 0.6,
             threshold : 1.0,
         }
@@ -72,8 +72,6 @@ impl<A: Action, S: State<A>> MCCFR<A, S> {
                 self.run_averaging_iteration(rng, 
                                              player, 
                                              0, 
-                                             1.0,
-                                             1.0,
                                              1.0);
                 //self.run_iteration(rng, player, 1.0, 1.0, 1.0, epsilon, 0);
             }
@@ -94,34 +92,28 @@ impl<A: Action, S: State<A>> MCCFR<A, S> {
         rng: &mut R,
         updated_player: usize,
         depth: usize,
-        averaged_probability: f64, // Probability for bookkeeping a la AS MCCFR paper 
-        reached_player_prob : f64, // Probability of getting to the updated player at this node 
-                                   // given the updated player follows her strategy
-        reached_others_prob : f64, // Probability of getting to this node, given the updated
-                                   // player actively takes actions to reach this node
-                                   // TODO: there's an optimization that can be done here
-                                   // where we can just pass in the joint probabilities
-                                   // and divide/multply when needed  (saves ~1/2 the multiplications)
+        q: f64, // Probability for bookkeeping a la AS MCCFR paper 
     ) -> f64 {
         self.nodes_traversed += 1;
         match self.game.active_player() {
             ActivePlayer::Terminal(utilities) => {
                 //println!("histories: {:?} {:?}", self.game.history(0),  self.game.history(1));
                 //println!("Terminal: {:?}", utilities);
-                utilities[updated_player] / averaged_probability
+                utilities[updated_player] / q
             },
             ActivePlayer::Chance(actions) => {
                 //println!("Chance: {:?}", actions);
-                let (action, probability) = actions.sample_and_prob(rng);
-                let action = self.game_mapper.map_action(action, depth);
+                let (action, _) = actions.sample_and_prob(rng);
+                let mut action = self.game_mapper.map_action(action, depth);
+                if actions.items().len() == 3 {
+                     action = actions.items()[2].clone();
+                }
                 self.game.play(action);
                 self.run_averaging_iteration(
                     rng,
                     updated_player,
                     depth + 1,
-                    averaged_probability,
-                    reached_player_prob * probability, // TODO: is this right?
-                    reached_others_prob * probability,
+                    q
                 )
             }
             ActivePlayer::Player(player_num, actions) => {
@@ -141,7 +133,7 @@ impl<A: Action, S: State<A>> MCCFR<A, S> {
                 if player_num != updated_player {
                     // Weigh actions by amount of regret accumulated
                     // for not taking the action
-                    regrets = regrets.iter().map(|r| r / averaged_probability).collect();
+                    regrets = regrets.iter().map(|r| r / q).collect();
                     //println!("regrets: {:?}", regrets);
                     strategy.update(history, None, Some(&regrets));
                     let distribution = Categorical::new_normalized(regrets, actions);
@@ -153,9 +145,7 @@ impl<A: Action, S: State<A>> MCCFR<A, S> {
                         rng,
                         updated_player,
                         depth + 1,
-                        averaged_probability,
-                        reached_player_prob  * probability, // ???
-                        reached_others_prob  * probability, // ???
+                        q
                     );
                 }
 
@@ -183,9 +173,7 @@ impl<A: Action, S: State<A>> MCCFR<A, S> {
                             rng,
                             updated_player,
                             depth + 1,
-                            averaged_probability * probability.min(1.0),
-                            reached_player_prob,  // ???
-                            reached_others_prob * probability,
+                            q * probability.min(1.0),
                         );
                         self.game = temp_game;
                         regret_updates.push(value);
