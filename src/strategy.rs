@@ -3,6 +3,7 @@ use crate::action::{GameMapper, HotEncoding, IntoHotEncoding};
 use crate::state::State;
 use crate::{Categorical, Game};
 use dashmap::DashMap;
+use crossbeam::atomic::AtomicCell; 
 
 
 use std::fs::File;
@@ -16,7 +17,7 @@ pub type RegretMap<A> = DashMap<InformationSet<A>, RegretDistribution>;
 
 #[derive(Clone, Debug)]
 pub struct RegretStrategy<A: Action> {
-    updates: usize,
+    //iterations: AtomicCell<usize>,
     policy_map: PolicyMap<A>,
     regret_map: RegretMap<A>,
 }
@@ -24,7 +25,7 @@ pub struct RegretStrategy<A: Action> {
 impl<A: Action> Default for RegretStrategy<A> {
     fn default() -> Self {
         RegretStrategy {
-            updates: 0,
+            //iterations: 0,
             policy_map : DashMap::new(),
             regret_map : DashMap::new(),
         }
@@ -35,12 +36,12 @@ impl<A: Action> RegretStrategy<A> {
 
     pub fn regrets(&self, information_set: &InformationSet<A>) -> Option<RegretDistribution> {
         // Hmmmmm??
-        // TODO: speeeeeeeeeeeeeeeeed
+        // TODO: speeeeeeeeeeeeeeeeed get rid of the clone somehow
         self.regret_map.get(information_set).map(|r| (*r).clone()).map(|v| Vec::from(v))
     }
     pub fn policy(&self, information_set: &InformationSet<A>) -> Option<PolicyDistribution> {
         // Hmmmmm??
-        // TODO: speeeeeeeeeeeeeeeeed
+        // TODO: speeeeeeeeeeeeeeeeed, get rid of the clone somehow
         self.policy_map.get(information_set).map(|r| (*r).clone()).map(|v| Vec::from(v))
     }
     pub fn save_table_json(&self, file_name: &str, action_mapper: &GameMapper<A>) {
@@ -71,15 +72,11 @@ impl<A: Action> RegretStrategy<A> {
     ///[Neal] Update the policy distribution of an information set based on the regrets
     /// and current strategy
     pub fn update(
-        &mut self,
+        &self,
         info_set: Vec<A>,
         d_reg: Option<&[f64]>, // [Neal] Observed current regrets at a terminal history
         d_strat: Option<&[f64]>, // [Neal] Observed current strategy at a terminal history TODO: ?
     ) {
-        self.updates += 1;
-        //println!("Updating strategy for {:?}", info_set);
-        //println!("d_reg: {:?}", d_reg);
-        //println!("d_strat: {:?}", d_strat);
         let len = d_reg
             .or(d_strat)
             .expect("Pass at least one of d_reg, d_strat to update")

@@ -4,9 +4,9 @@ use crate::constants::MAX_GAME_DEPTH;
 use crate::state::{ActivePlayer, State};
 use crate::strategy::*;
 use crate::{Categorical, Game};
-use hashbrown::HashMap;
 use rand::Rng;
 use serde_json::json;
+use std::sync::Arc;
 use std::collections::HashMap as SerializableHashMap;
 
 #[derive(Clone, Debug)]
@@ -14,7 +14,7 @@ pub struct MCCFR<A: Action, S: State<A>> {
     game: Game<A, S>,
     pub iterations: usize,
     pub nodes_traversed: usize,
-    strategies: Vec<RegretStrategy<A>>,
+    strategies: Vec<Arc<RegretStrategy<A>>>,
     game_mapper: GameMapper<A>,
     bonus: f64,
     exploration: f64,
@@ -35,14 +35,12 @@ pub struct MCCFR<A: Action, S: State<A>> {
 /// a very helpful article can be found here on the sorts of compressions you can do:
 /// https://blog.logrocket.com/rust-serialization-whats-ready-for-production-today/
 impl<A: Action, S: State<A>> MCCFR<A, S> {
-    pub fn new(game: Game<A, S>) -> Self {
-        let mut s = Vec::new();
-        s.resize(game.num_regular_players(), RegretStrategy::default());
+    pub fn new(game: Game<A, S>, strategies : Vec<Arc<RegretStrategy<A>>>) -> Self {
         MCCFR {
             game,
             iterations: 0,
             nodes_traversed: 0,
-            strategies: s,
+            strategies : strategies,
             game_mapper: GameMapper::new(None),
             bonus: 0.00, // Set to 0.0 and threshold to 1.0 for MCCFR Outcome Sampling
             exploration: 0.6,
