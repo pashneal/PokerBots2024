@@ -22,11 +22,10 @@ pub struct MCCFR<A: Action, S: State<A>> {
 }
 
 /// [Neal] Represents the state information necessary to run iterations on MCCFR
-/// given a particular Game description, the name OuterMCCFR might not be entirely accurate
-/// (the author may have meant Outcome Sampling MCCFR, but translated it to Outer)???
+/// given a particular Game description
 ///
-/// Regardless, yes, thanks for setting some stuff up, but I think I'm going to switch
-/// to Average Sampling which is a bit more efficient.
+/// Original author used Outcome (or Chance) Sampling, we have switched this
+/// to Average Sampling which is in theory a bit more efficient.
 ///
 /// Tabular representation, which may be problematic for extra large games,
 /// we may have to switch to a more efficient representation of the strategy or
