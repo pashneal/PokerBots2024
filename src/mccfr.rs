@@ -61,28 +61,6 @@ impl<A: Action, S: State<A>> MCCFR<A, S> {
         }
     }
 
-    /// [Neal] Run the MCCFR iterations as specificed
-    pub fn run_iterations<R: Rng>(&mut self, iterations: usize, epsilon: f64, rng: &mut R) {
-        self.exploration = epsilon;
-        for i in 0..iterations {
-            for player in 0..self.game.num_regular_players() {
-                self.strategies[player].iterations += 1;
-                self.game = Game::<_, _>::new();
-                self.run_averaging_iteration(rng, player, 0, 1.0);
-                //self.run_iteration(rng, player, 1.0, 1.0, 1.0, epsilon, 0);
-            }
-            self.iterations += 1;
-            if i % 100_000 == 0 {
-                println!(
-                    "Iteration: {}, Nodes Traversed: {}, strategies[0] size: {}",
-                    self.iterations,
-                    self.nodes_traversed,
-                    self.strategies[0].size()
-                );
-            }
-        }
-    }
-
     pub fn run_averaging_iteration<R: Rng>(
         &mut self,
         rng: &mut R,
@@ -93,12 +71,9 @@ impl<A: Action, S: State<A>> MCCFR<A, S> {
         self.nodes_traversed += 1;
         match self.game.active_player() {
             ActivePlayer::Terminal(utilities) => {
-                //println!("histories: {:?} {:?}", self.game.history(0),  self.game.history(1));
-                //println!("Terminal: {:?}", utilities);
                 utilities[updated_player] / q
             }
             ActivePlayer::Chance(actions) => {
-                //println!("Chance: {:?}", actions);
                 let (action, _) = actions.sample_and_prob(rng);
                 let mut action = self.game_mapper.map_action(action, depth);
                 if actions.items().len() == 3 {
@@ -108,10 +83,7 @@ impl<A: Action, S: State<A>> MCCFR<A, S> {
                 self.run_averaging_iteration(rng, updated_player, depth + 1, q)
             }
             ActivePlayer::Player(player_num, actions) => {
-                //println!("history: {:?}", self.game.history(player_num as usize));
-                //println!("Player: {:?}", actions);
                 let actions = self.game_mapper.map_actions(&actions, depth);
-                //println!("Player (Mapped): {:?}", actions);
                 let player_num = player_num as usize;
                 let length = actions.len() as f64;
                 let history = self.game.history(player_num);
@@ -125,7 +97,6 @@ impl<A: Action, S: State<A>> MCCFR<A, S> {
                     // Weigh actions by amount of regret accumulated
                     // for not taking the action
                     regrets = regrets.iter().map(|r| r / q).collect();
-                    //println!("regrets: {:?}", regrets);
                     strategy.update(history, None, Some(&regrets));
                     let distribution = Categorical::new_normalized(regrets, actions);
                     let (sampled_action, probability) = distribution.sample_and_prob(rng);
@@ -173,8 +144,6 @@ impl<A: Action, S: State<A>> MCCFR<A, S> {
                     .zip(regrets.iter())
                     .map(|(a, b)| a * b)
                     .sum::<f64>();
-
-                assert!(regrets.len() == regret_updates.len());
 
                 // black magic ???
                 let full_update = regret_updates
