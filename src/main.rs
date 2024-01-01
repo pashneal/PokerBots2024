@@ -60,8 +60,8 @@ pub fn main() -> () {
 
     let g = Game::<KuhnPokerAction, KuhnPokerState>::new();
 
-    let mut mcp = MCCFRParallel::<KuhnPokerAction, KuhnPokerState>::new(4);
-    mcp.run_iterations(1000000, 0.6);
+    let mut mcp = MCCFRParallel::<KuhnPokerAction, KuhnPokerState>::new(8);
+    mcp.run_iterations(10000000, 0.6);
 
     mcp.write_to("kuhn_poker");
 }
