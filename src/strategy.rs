@@ -16,16 +16,14 @@ pub type RegretMap<A> = DashMap<InformationSet<A>, RegretDistribution>;
 
 #[derive(Clone, Debug)]
 pub struct RegretStrategy<A: Action> {
-    pub updates: usize,
-    pub iterations: usize,
-    pub policy_map: PolicyMap<A>,
-    pub regret_map: RegretMap<A>,
+    updates: usize,
+    policy_map: PolicyMap<A>,
+    regret_map: RegretMap<A>,
 }
 
 impl<A: Action> Default for RegretStrategy<A> {
     fn default() -> Self {
         RegretStrategy {
-            iterations: 0,
             updates: 0,
             policy_map : DashMap::new(),
             regret_map : DashMap::new(),

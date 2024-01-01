@@ -66,7 +66,6 @@ impl<A: Action, S: State<A>> MCCFR<A, S> {
         self.exploration = epsilon;
         for i in 0..iterations {
             for player in 0..self.game.num_regular_players() {
-                self.strategies[player].iterations += 1;
                 self.game = Game::<_, _>::new();
                 self.run_averaging_iteration(rng, player, 0, 1.0);
                 //self.run_iteration(rng, player, 1.0, 1.0, 1.0, epsilon, 0);
