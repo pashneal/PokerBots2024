@@ -68,4 +68,3 @@ pub fn main() -> () {
 
     mc.write_to("kuhn_poker");
 }
-
