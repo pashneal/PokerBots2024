@@ -60,7 +60,7 @@ pub type GoofspielAction = u32;
 #[derive(Clone, Debug)]
 pub struct GoofspielState {
     cards: [BitSet; 3],
-    scores: [f64; 2],
+    scores: [f32; 2],
     active: ActivePlayer<GoofspielAction>,
     bets: [GoofspielAction; 2],
     internal: Goofspiel, // [Neal] This is poor design but it's
@@ -139,7 +139,7 @@ impl GoofspielState {
 
 impl State<GoofspielAction> for GoofspielState {
     fn new() -> Self {
-        let internal = Goofspiel::new(7, Scoring::ZeroSum);
+        let internal = Goofspiel::new(6, Scoring::ZeroSum);
         let cards = [
             internal.card_set.clone(),
             internal.card_set.clone(),

@@ -16,9 +16,9 @@ pub struct MCCFR<A: Action, S: State<A>> {
     pub nodes_traversed: usize,
     strategies: Vec<Arc<RegretStrategy<A>>>,
     game_mapper: GameMapper<A>,
-    bonus: f64,
-    exploration: f64,
-    threshold: f64,
+    bonus: f32,
+    exploration: f32,
+    threshold: f32,
 }
 
 /// [Neal] Represents the state information necessary to run iterations on MCCFR
@@ -60,7 +60,7 @@ impl<A: Action, S: State<A>> MCCFR<A, S> {
     }
 
     /// [Neal] Run the MCCFR iterations as specificed
-    pub fn run_iterations<R: Rng>(&mut self, iterations: usize, epsilon: f64, rng: &mut R) {
+    pub fn run_iterations<R: Rng>(&mut self, iterations: usize, epsilon: f32, rng: &mut R) {
         self.exploration = epsilon;
         for i in 0..iterations {
             for player in 0..self.game.num_regular_players() {
@@ -84,8 +84,8 @@ impl<A: Action, S: State<A>> MCCFR<A, S> {
         rng: &mut R,
         updated_player: usize,
         depth: usize,
-        q: f64, // Probability for bookkeeping a la AS MCCFR paper
-    ) -> f64 {
+        q: f32, // Probability for bookkeeping a la AS MCCFR paper
+    ) -> f32 {
         self.nodes_traversed += 1;
         match self.game.active_player() {
             ActivePlayer::Terminal(utilities) => {
@@ -100,7 +100,7 @@ impl<A: Action, S: State<A>> MCCFR<A, S> {
             ActivePlayer::Player(player_num, actions) => {
                 let actions = self.game_mapper.map_actions(&actions, depth);
                 let player_num = player_num as usize;
-                let length = actions.len() as f64;
+                let length = actions.len() as f32;
                 let history = self.game.history(player_num);
                 let strategy = &mut self.strategies[player_num];
 
@@ -131,7 +131,7 @@ impl<A: Action, S: State<A>> MCCFR<A, S> {
                 let sampling_values =
                     average_sampling(&policy, self.exploration, self.bonus, self.threshold);
 
-                let mut regret_updates: Vec<f64> = vec![];
+                let mut regret_updates: Vec<f32> = vec![];
 
                 // Sample potentially many actions, and determine a
                 // counterfactual regret update for each
@@ -159,13 +159,13 @@ impl<A: Action, S: State<A>> MCCFR<A, S> {
                     .iter()
                     .zip(regrets.iter())
                     .map(|(a, b)| a * b)
-                    .sum::<f64>();
+                    .sum::<f32>();
 
                 // black magic ???
                 let full_update = regret_updates
                     .iter()
                     .map(|a| a - counter_factual_estimation)
-                    .collect::<Vec<f64>>();
+                    .collect::<Vec<f32>>();
 
                 let strategy = &mut self.strategies[player_num];
                 strategy.update(history, Some(&full_update), None);
@@ -179,20 +179,20 @@ impl<A: Action, S: State<A>> MCCFR<A, S> {
 
 /// Average sampling used in line with this paper:
 /// https://proceedings.neurips.cc/paper_files/paper/2012/file/3df1d4b96d8976ff5986393e8767f5b2-Paper.pdf
-fn average_sampling(policy: &[f64], e: f64, b: f64, t: f64) -> Vec<f64> {
-    let denominator: f64 = policy.iter().sum::<f64>() + b;
+fn average_sampling(policy: &[f32], e: f32, b: f32, t: f32) -> Vec<f32> {
+    let denominator: f32 = policy.iter().sum::<f32>() + b;
     let probabilities = policy
         .iter()
         .map(|s| (b + t * s) / denominator)
         .map(|s| s.max(e))
-        .collect::<Vec<f64>>();
+        .collect::<Vec<f32>>();
     probabilities
 }
 
 /// Weigh regrets by the relative size of that regret
-fn regret_matching(reg: &[f64]) -> Vec<f64> {
+fn regret_matching(reg: &[f32]) -> Vec<f32> {
     let regp = reg.iter().map(|&v| if v >= 0.0 { v } else { 0.0 });
-    let s = regp.clone().sum::<f64>();
+    let s = regp.clone().sum::<f32>();
     let l = reg.len();
 
     // space optimization: caps the regret to not go infinitely negative
@@ -200,6 +200,6 @@ fn regret_matching(reg: &[f64]) -> Vec<f64> {
     if s > 0.0 {
         regp.map(|v| v / s).collect()
     } else {
-        vec![1.0 / l as f64; l]
+        vec![1.0 / l as f32; l]
     }
 }

@@ -70,7 +70,7 @@ impl KuhnPokerState {
         ActivePlayer::Chance(Categorical::uniform(deals))
     }
 
-    fn folded(&self, delta: f64, player_num: usize) -> ActivePlayer<KuhnPokerAction> {
+    fn folded(&self, delta: f32, player_num: usize) -> ActivePlayer<KuhnPokerAction> {
         if player_num == 1 {
             ActivePlayer::Terminal(vec![delta, -delta])
         } else {
@@ -78,7 +78,7 @@ impl KuhnPokerState {
         }
     }
 
-    fn showdown(&self, delta: f64) -> ActivePlayer<KuhnPokerAction> {
+    fn showdown(&self, delta: f32) -> ActivePlayer<KuhnPokerAction> {
         let card0 = self.players_cards[0].unwrap();
         let card1 = self.players_cards[1].unwrap();
 

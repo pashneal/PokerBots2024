@@ -29,7 +29,7 @@ impl <A : Action + Sync + Send + 'static, S : State<A> + Send + 'static> MCCFRPa
         }
     }
 
-    pub fn run_iterations(&mut self, iterations: usize, epsilon: f64) {
+    pub fn run_iterations(&mut self, iterations: usize, epsilon: f32) {
         let mut thread_iters = vec![iterations / self.threads; self.threads];
         for i in 0..(iterations % self.threads) {
             thread_iters[i] += 1;

@@ -28,7 +28,7 @@ use rand::{rngs::SmallRng, SeedableRng};
 
 use std::sync::Arc;
 
-pub type Utility = f64;
+pub type Utility = f32;
 
 pub fn test_abstractions() -> GameMapper<GoofspielAction> {
     // Set up our filters

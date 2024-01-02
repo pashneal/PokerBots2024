@@ -10,8 +10,8 @@ use std::fs::File;
 use std::io::Write;
 
 pub type InformationSet<A> = Vec<A>;
-pub type PolicyDistribution = Vec<f64>;
-pub type RegretDistribution = Vec<f64>;
+pub type PolicyDistribution = Vec<f32>;
+pub type RegretDistribution = Vec<f32>;
 pub type PolicyMap<A> = DashMap<InformationSet<A>, PolicyDistribution>;
 pub type RegretMap<A> = DashMap<InformationSet<A>, RegretDistribution>;
 
@@ -74,8 +74,8 @@ impl<A: Action> RegretStrategy<A> {
     pub fn update(
         &self,
         info_set: Vec<A>,
-        d_reg: Option<&[f64]>, // [Neal] Observed current regrets at a terminal history
-        d_strat: Option<&[f64]>, // [Neal] Observed current strategy at a terminal history TODO: ?
+        d_reg: Option<&[f32]>, // [Neal] Observed current regrets at a terminal history
+        d_strat: Option<&[f32]>, // [Neal] Observed current strategy at a terminal history TODO: ?
     ) {
         let len = d_reg
             .or(d_strat)
@@ -137,7 +137,7 @@ pub fn to_binary(v: Vec<Vec<i32>>) -> Vec<i32> {
     all
 }
 
-pub fn normalized(v: Vec<f64>) -> Vec<f64> {
+pub fn normalized(v: Vec<f32>) -> Vec<f32> {
     let mut sum = 0.0;
     for e in &v {
         sum += e;
