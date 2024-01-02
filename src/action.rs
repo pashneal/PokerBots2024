@@ -3,29 +3,15 @@ use std::fmt::Debug;
 use std::hash::Hash;
 pub use std::ops::RangeInclusive as StdRange;
 
-pub type ActionIndex = u32;
-/// Represents a possible action or observation in the game
-/// from a limited number of choices, must have exactly one boolean set to true
-pub type HotEncoding = Vec<bool>;
-
-pub trait IntoHotEncoding {
-    fn encoding(self, size: usize) -> HotEncoding;
-}
+pub type ActionIndex = u8;
 
 pub trait Action:
-    Clone + Debug + Hash + PartialEq + Eq + Into<ActionIndex> + IntoHotEncoding + Filterable
+    Clone + Debug + Hash + PartialEq + Eq + Filterable + Into<ActionIndex>
 {
 }
 
-/// Some default implementations to get us situated for goofspiel impl
-impl Action for u32 {}
-impl IntoHotEncoding for ActionIndex {
-    fn encoding(self, size: usize) -> HotEncoding {
-        let mut v = vec![false; size];
-        v[self as usize] = true;
-        v
-    }
-}
+
+
 pub type ActionFilter<A> = (Filter<A>, A);
 
 #[derive(Debug, Clone)]
@@ -41,6 +27,18 @@ impl<A: Filterable> ActionMapper<A> {
     }
     pub fn add_filter(&mut self, filter: Filter<A>, action: A) {
         self.filters.push((filter, action));
+    }
+
+    pub fn map_and_index(&self, action: A) -> (A, ActionIndex) {
+        for (index, (filter, mapped_action)) in self.filters.iter().enumerate() {
+            if filter.accepts(&action) {
+                return (mapped_action.clone(), index as ActionIndex);
+            }
+        }
+        panic!(
+            "No filter matched action, check that your filters span the entire action space!! {:?}",
+            action
+        );
     }
     pub fn map(&self, action: A) -> A {
         for (filter, mapped_action) in &self.filters {
@@ -81,6 +79,7 @@ pub struct GameMapper<A: Filterable + Action> {
     max_encoding_size: usize,
 }
 
+/// TODO: The indexing is weird
 impl<A: Filterable + Action> GameMapper<A> {
     ///  Create a GameMapper with no default mapping (passes all actions through)
     ///  recall_depth determines how many states will be
@@ -121,6 +120,15 @@ impl<A: Filterable + Action> GameMapper<A> {
         }
     }
 
+    pub fn map_and_index(&self, action: A, depth: usize, index : ActionIndex) -> (A, ActionIndex) {
+        let mapper = &self.depth_specific_maps[depth];
+        match mapper {
+            Some(mapper) => mapper.map_and_index(action),
+            None => (action, index),
+        }
+    }
+
+
     pub fn map_action(&self, action: A, depth: usize) -> A {
         // TODO: since this is a pure function we can memoize it
         //       for speed improvements
@@ -148,31 +156,6 @@ impl<A: Filterable + Action> GameMapper<A> {
                 .collect(),
             None => actions.clone(),
         }
-    }
-
-    fn map_index(&self, action: &A, depth: usize) -> ActionIndex {
-        let mapper = &self.depth_specific_maps[depth];
-        match mapper {
-            Some(mapper) => mapper.to_index(action.clone()),
-            None => action.clone().into(),
-        }
-    }
-
-    pub fn encode(&self, history: &Vec<A>) -> Vec<HotEncoding> {
-        debug_assert!(history.len() <= self.recall_depth);
-        let mut encodings = Vec::new();
-        let max_depth = self.recall_depth;
-
-        // Take last *depth* actions, map them to ActionIndex, and then encode them
-        for (depth, action) in history.iter().rev().take(max_depth).rev().enumerate() {
-            let action_index = self.map_index(action, depth);
-            let mut encoding = action_index.encoding(self.max_encoding_size);
-            // Pad the end of any sparser encodings with dummy false values
-            encoding.resize(self.max_encoding_size, false);
-
-            encodings.push(encoding);
-        }
-        encodings
     }
 
     pub fn encoding_size(&self) -> usize {
@@ -347,11 +330,11 @@ pub enum PokerAction {
     Check,
     Deal(Hand),
 }
-impl Into<u32> for PokerAction {
-    fn into(self) -> u32 {
+impl Into<ActionIndex> for PokerAction {
+    fn into(self) -> ActionIndex {
         match self {
             PokerAction::Fold => 0,
-            PokerAction::Bet(n) => n,
+            PokerAction::Bet(n) => n as ActionIndex,
             PokerAction::Check => 0,
             PokerAction::Deal(hand) => 0,
         }
@@ -379,12 +362,6 @@ impl Parsable for PokerAction {
 }
 impl Filterable for PokerAction {}
 
-/// TODO: this is a dummy implemenation until we have full abstractions
-impl IntoHotEncoding for PokerAction {
-    fn encoding(self, size: usize) -> HotEncoding {
-        todo!()
-    }
-}
 
 #[derive(Debug, Clone)]
 pub struct Clause<T>

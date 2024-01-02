@@ -1,6 +1,6 @@
 /// Implementation of Goofspiel, a simpler card game. Very useful for
 /// figuring out how to implement a game in this framework.
-use crate::action::{HotEncoding, IntoHotEncoding};
+use crate::action::{Action, ActionIndex, Filterable, Parsable};
 use crate::state::{ActivePlayer, State};
 use crate::visibility::Visibility;
 use crate::{Categorical, Utility};
@@ -15,14 +15,6 @@ pub enum Scoring {
 
 const MIN_SCORE: i32 = -13;
 
-impl IntoHotEncoding for i32 {
-    fn encoding(self, size: usize) -> HotEncoding {
-        let score = self - MIN_SCORE;
-        let mut v = vec![false; size];
-        v[score as usize] = true;
-        v
-    }
-}
 #[derive(Debug, Clone, PartialEq)]
 struct Goofspiel {
     /// Number of cards.
@@ -54,7 +46,27 @@ impl Goofspiel {
     }
 }
 
-pub type GoofspielAction = u32;
+impl Into<ActionIndex> for GoofspielAction {
+    fn into(self) -> ActionIndex {
+        self.0 as ActionIndex
+    }
+}
+
+impl Parsable for GoofspielAction {
+    fn to_string(&self) -> Option<String> {
+        None
+    }
+
+    fn to_usize(&self) -> Option<usize> {
+        Some(self.0 as usize)
+    }
+}
+impl Filterable for GoofspielAction {}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct GoofspielAction(pub u32);
+
+impl Action for GoofspielAction {}
 
 /// Players are p0 and p1, p2 is chance
 #[derive(Clone, Debug)]
@@ -62,7 +74,7 @@ pub struct GoofspielState {
     cards: [BitSet; 3],
     scores: [f32; 2],
     active: ActivePlayer<GoofspielAction>,
-    bets: [GoofspielAction; 2],
+    bets: [u32; 2],
     internal: Goofspiel, // [Neal] This is poor design but it's
                          // because I don't really want to re-implement the above
                          // but just re-use the existing implementation
@@ -81,13 +93,13 @@ impl GoofspielState {
     fn player_update(&mut self, action: GoofspielAction) {
         if let ActivePlayer::Player(player_num, _) = self.active_player() {
             let player_num = player_num as usize;
-            self.cards[player_num].remove(action as usize);
-            self.bets[player_num] = action;
+            self.cards[player_num].remove(action.0 as usize);
+            self.bets[player_num] = action.0;
             let betting_round_over = player_num == 1;
             if betting_round_over {
                 // If the betting round is over,
                 // then we need to give the biggest better the points!
-                let card_value = self.internal.values[(action - 1) as usize];
+                let card_value = self.internal.values[(action.0 - 1) as usize];
                 let winner = (self.bets[0] as i32 - self.bets[1] as i32).signum();
                 if winner == 1 {
                     self.scores[0] += card_value;
@@ -98,10 +110,10 @@ impl GoofspielState {
                 // Implicitly discard the card if it's a tie
             }
 
-            let player1_cards = self.cards[1].iter().map(|x| x as GoofspielAction).collect();
+            let player1_cards = self.cards[1].iter().map(|x| GoofspielAction(x as u32)).collect();
             let player2_cards = self.cards[2]
                 .iter()
-                .map(|x| x as GoofspielAction)
+                .map(|x| GoofspielAction(x as u32))
                 .collect::<Vec<_>>();
             let num_cards_remaining = player2_cards.len();
 
@@ -129,17 +141,17 @@ impl GoofspielState {
 
     fn chance_update(&mut self, action: GoofspielAction) {
         // Choose a card and remove the chosen card from the chance pool
-        self.cards[2].remove(action as usize);
+        self.cards[2].remove(action.0 as usize);
 
         // Loop to player 0
-        let available_cards = self.cards[0].iter().map(|x| x as GoofspielAction).collect();
+        let available_cards = self.cards[0].iter().map(|x| GoofspielAction(x as u32)).collect();
         self.active = ActivePlayer::Player(0, available_cards);
     }
 }
 
 impl State<GoofspielAction> for GoofspielState {
     fn new() -> Self {
-        let internal = Goofspiel::new(6, Scoring::ZeroSum);
+        let internal = Goofspiel::new(7, Scoring::ZeroSum);
         let cards = [
             internal.card_set.clone(),
             internal.card_set.clone(),
@@ -150,7 +162,7 @@ impl State<GoofspielAction> for GoofspielState {
             internal
                 .card_set
                 .iter()
-                .map(|x| x as u32)
+                .map(|x| GoofspielAction(x as u32))
                 .collect::<Vec<_>>(),
         ));
         let bets = [0, 0];

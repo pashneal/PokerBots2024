@@ -1,11 +1,11 @@
 use crate::constants::*;
 use crate::state::State;
-use crate::strategy::InformationSet;
+use crate::strategy::CondensedInfoSet;
 use crate::visibility::VisibilityTracker;
 use std::fmt::Debug;
 use std::hash::Hash;
 
-use crate::action::Action;
+use crate::action::{Action, ActionIndex};
 use crate::state::ActivePlayer;
 
 #[derive(Clone, Debug)]
@@ -13,8 +13,9 @@ pub struct Game<A: Action, S: State<A>>
 where
     S: Clone,
 {
-    visibility_tracker: VisibilityTracker<A>,
+    visibility_tracker: VisibilityTracker,
     state: S,
+    action : std::marker::PhantomData<A>,
 }
 
 impl<A: Action, S: State<A>> Game<A, S>
@@ -29,6 +30,7 @@ where
         Game {
             state: S::new(),
             visibility_tracker: VisibilityTracker::new(),
+            action : std::marker::PhantomData,
         }
     }
 
@@ -40,8 +42,8 @@ where
         self.state.update(action);
     }
 
-    pub fn history(&self, player: usize) -> InformationSet<A> {
-        self.visibility_tracker.get_history(player)
+    pub fn history(&self, player: usize) -> CondensedInfoSet { 
+        self.visibility_tracker.get_history(player).into_condensed()
     }
 
     pub fn active_player(&self) -> ActivePlayer<A> {

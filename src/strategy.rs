@@ -1,5 +1,5 @@
-use crate::action::Action;
-use crate::action::{GameMapper, HotEncoding, IntoHotEncoding};
+use crate::action::{Action, ActionIndex};
+use crate::action::GameMapper;
 use crate::state::State;
 use crate::{Categorical, Game};
 use dashmap::DashMap;
@@ -9,20 +9,21 @@ use crossbeam::atomic::AtomicCell;
 use std::fs::File;
 use std::io::Write;
 
-pub type InformationSet<A> = Vec<A>;
+pub type CondensedInfoSet = u64;
+pub type InformationSet = Vec<ActionIndex>;
 pub type PolicyDistribution = Vec<f32>;
 pub type RegretDistribution = Vec<f32>;
-pub type PolicyMap<A> = DashMap<InformationSet<A>, PolicyDistribution>;
-pub type RegretMap<A> = DashMap<InformationSet<A>, RegretDistribution>;
+pub type PolicyMap = DashMap<CondensedInfoSet, PolicyDistribution>;
+pub type RegretMap = DashMap<CondensedInfoSet, RegretDistribution>;
 
 #[derive(Clone, Debug)]
-pub struct RegretStrategy<A: Action> {
+pub struct RegretStrategy{
     //iterations: AtomicCell<usize>,
-    policy_map: PolicyMap<A>,
-    regret_map: RegretMap<A>,
+    policy_map: PolicyMap,
+    regret_map: RegretMap,
 }
 
-impl<A: Action> Default for RegretStrategy<A> {
+impl Default for RegretStrategy {
     fn default() -> Self {
         RegretStrategy {
             //iterations: 0,
@@ -32,27 +33,24 @@ impl<A: Action> Default for RegretStrategy<A> {
     }
 }
 
-impl<A: Action> RegretStrategy<A> {
+impl RegretStrategy {
 
-    pub fn regrets(&self, information_set: &InformationSet<A>) -> Option<RegretDistribution> {
+    pub fn regrets(&self, information_set: &CondensedInfoSet) -> Option<RegretDistribution> {
         // Hmmmmm??
         // TODO: speeeeeeeeeeeeeeeeed get rid of the clone somehow
         self.regret_map.get(information_set).map(|r| (*r).clone()).map(|v| Vec::from(v))
     }
-    pub fn policy(&self, information_set: &InformationSet<A>) -> Option<PolicyDistribution> {
+    pub fn policy(&self, information_set: &CondensedInfoSet) -> Option<PolicyDistribution> {
         // Hmmmmm??
         // TODO: speeeeeeeeeeeeeeeeed, get rid of the clone somehow
         self.policy_map.get(information_set).map(|r| (*r).clone()).map(|v| Vec::from(v))
     }
-    pub fn save_table_json(&self, file_name: &str, action_mapper: &GameMapper<A>) {
+    pub fn save_table_json<A : Action>(&self, file_name: &str, action_mapper: &GameMapper<A>) {
         let mut file = File::create(file_name).unwrap();
         let mut table = Vec::new();
         println!("Saving table to {}", file_name);
         for reference in self.policy_map.iter() {
             let (information_set, strategy) = reference.pair();
-            let info_set = to_encodings(information_set.clone(), action_mapper);
-            let info_set = to_int(info_set);
-            let info_set = to_binary(info_set);
 
             // Optimization: only if there is a non-zero value in the strategy, add it to the table
             if strategy.iter().all(|&x| x < 0.0001) {
@@ -63,7 +61,7 @@ impl<A: Action> RegretStrategy<A> {
                 continue;
             }
             let strategy = normalized(strategy.clone());
-            table.push((info_set, strategy.clone()));
+            table.push((information_set.clone(), strategy.clone()));
         }
         let json = serde_json::to_string(&table).unwrap();
         file.write_all(json.as_bytes()).unwrap();
@@ -73,7 +71,7 @@ impl<A: Action> RegretStrategy<A> {
     /// and current strategy
     pub fn update(
         &self,
-        info_set: Vec<A>,
+        info_set: CondensedInfoSet,
         d_reg: Option<&[f32]>, // [Neal] Observed current regrets at a terminal history
         d_strat: Option<&[f32]>, // [Neal] Observed current strategy at a terminal history TODO: ?
     ) {
@@ -104,37 +102,6 @@ impl<A: Action> RegretStrategy<A> {
     pub fn size(&self) -> usize {
         self.policy_map.len()
     }
-}
-
-pub fn to_encodings<A: Action>(actions: Vec<A>, mapper: &GameMapper<A>) -> Vec<HotEncoding> {
-    mapper.encode(&actions)
-}
-
-pub fn to_int(v: Vec<HotEncoding>) -> Vec<Vec<i32>> {
-    let mut all = Vec::new();
-    for e in v {
-        let mut int_vec = Vec::new();
-        for b in e {
-            int_vec.push(b as i32);
-        }
-        all.push(int_vec);
-    }
-    all
-}
-
-pub fn to_binary(v: Vec<Vec<i32>>) -> Vec<i32> {
-    let mut all = Vec::new();
-    // Convert to binary number based on where the 1 is
-    for e in v {
-        let mut binary = 0;
-        for (i, b) in e.iter().enumerate() {
-            if *b == 1 {
-                binary += 2_i32.pow(i as u32);
-            }
-        }
-        all.push(binary);
-    }
-    all
 }
 
 pub fn normalized(v: Vec<f32>) -> Vec<f32> {

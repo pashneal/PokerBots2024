@@ -1,5 +1,5 @@
-use crate::action::Action;
-use crate::action::{GameMapper, HotEncoding, IntoHotEncoding};
+use crate::action::{Action, ActionIndex};
+use crate::action::GameMapper;
 use crate::constants::MAX_GAME_DEPTH;
 use crate::state::{ActivePlayer, State};
 use crate::strategy::*;
@@ -14,7 +14,7 @@ pub struct MCCFR<A: Action, S: State<A>> {
     game: Game<A, S>,
     pub iterations: usize,
     pub nodes_traversed: usize,
-    strategies: Vec<Arc<RegretStrategy<A>>>,
+    strategies: Vec<Arc<RegretStrategy>>,
     game_mapper: GameMapper<A>,
     bonus: f32,
     exploration: f32,
@@ -35,7 +35,7 @@ pub struct MCCFR<A: Action, S: State<A>> {
 /// a very helpful article can be found here on the sorts of compressions you can do:
 /// https://blog.logrocket.com/rust-serialization-whats-ready-for-production-today/
 impl<A: Action, S: State<A>> MCCFR<A, S> {
-    pub fn new(game: Game<A, S>, strategies : Vec<Arc<RegretStrategy<A>>>) -> Self {
+    pub fn new(game: Game<A, S>, strategies : Vec<Arc<RegretStrategy>>) -> Self {
         MCCFR {
             game,
             iterations: 0,
@@ -92,8 +92,9 @@ impl<A: Action, S: State<A>> MCCFR<A, S> {
                 utilities[updated_player] / q
             }
             ActivePlayer::Chance(actions) => {
-                let (action, _) = actions.sample_and_prob(rng);
-                let mut action = self.game_mapper.map_action(action, depth);
+                let (action, default_index) = actions.sample_and_index(rng);
+                let default_index = default_index as ActionIndex;
+                let (action, index) = self.game_mapper.map_and_index(action, depth, default_index);
                 self.game.play(action);
                 self.run_averaging_iteration(rng, updated_player, depth + 1, q)
             }
@@ -115,7 +116,7 @@ impl<A: Action, S: State<A>> MCCFR<A, S> {
                     regrets = regrets.iter().map(|r| r / q).collect();
                     strategy.update(history, None, Some(&regrets));
                     let distribution = Categorical::new_normalized(regrets, actions);
-                    let (sampled_action, probability) = distribution.sample_and_prob(rng);
+                    let (sampled_action, index) = distribution.sample_and_index(rng);
 
                     // Sample and explore action (likelier to be one with higher regret)
                     self.game.play(sampled_action);

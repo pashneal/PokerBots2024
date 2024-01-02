@@ -12,33 +12,6 @@ pub enum KuhnPokerAction {
     Bet,
 }
 
-impl IntoHotEncoding for KuhnPokerAction {
-    fn encoding(self, size: usize) -> HotEncoding {
-        match self {
-            KuhnPokerAction::Fold => vec![true, false, false, false],
-            KuhnPokerAction::Call => vec![false, true, false, false],
-            KuhnPokerAction::Check => vec![false, false, true, false],
-            KuhnPokerAction::Deal(x) => {
-                let mut v = vec![false; size];
-                v[x as usize] = true;
-                v
-            }
-            KuhnPokerAction::Bet => vec![false, false, false, true],
-        }
-    }
-}
-
-impl Into<u32> for KuhnPokerAction {
-    fn into(self) -> u32 {
-        match self {
-            KuhnPokerAction::Fold => 0,
-            KuhnPokerAction::Call => 1,
-            KuhnPokerAction::Check => 2,
-            KuhnPokerAction::Deal(x) => x as u32 + 3,
-            KuhnPokerAction::Bet => 6,
-        }
-    }
-}
 
 impl Parsable for KuhnPokerAction {
     fn to_string(&self) -> Option<String> {
@@ -47,6 +20,36 @@ impl Parsable for KuhnPokerAction {
 
     fn to_usize(&self) -> Option<usize> {
         None
+    }
+}
+
+impl Into<ActionIndex> for KuhnPokerAction {
+    fn into(self) -> ActionIndex {
+        match self {
+            KuhnPokerAction::Fold => 0,
+            KuhnPokerAction::Call => 1,
+            KuhnPokerAction::Check => 2,
+            KuhnPokerAction::Deal(0) => 3,
+            KuhnPokerAction::Deal(1) => 4,
+            KuhnPokerAction::Deal(2) => 5,
+            KuhnPokerAction::Bet => 6,
+            _ => panic!("Invalid action"),
+        }
+    }
+}
+
+impl From<ActionIndex> for KuhnPokerAction {
+    fn from(index: ActionIndex) -> Self {
+        match index {
+            0 => KuhnPokerAction::Fold,
+            1 => KuhnPokerAction::Call,
+            2 => KuhnPokerAction::Check,
+            3 => KuhnPokerAction::Deal(0),
+            4 => KuhnPokerAction::Deal(1),
+            5 => KuhnPokerAction::Deal(2),
+            6 => KuhnPokerAction::Bet,
+            _ => panic!("Invalid action"),
+        }
     }
 }
 impl Filterable for KuhnPokerAction {}

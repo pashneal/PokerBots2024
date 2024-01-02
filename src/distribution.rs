@@ -93,6 +93,12 @@ impl<T: Clone> Categorical<T> {
         let idx = self.1.sample(rng);
         (self.2[idx].clone(), self.0[idx])
     }
+
+    #[inline]
+    pub fn sample_and_index<'a, R: Rng>(&'a self, rng: &mut R) -> (T, usize) {
+        let idx = self.1.sample(rng);
+        (self.2[idx].clone(), idx)
+    }
 }
 
 pub fn sample_weighted<R: Rng>(ps: &[f32], rng: &mut R) -> usize {

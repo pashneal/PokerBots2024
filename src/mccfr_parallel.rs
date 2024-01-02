@@ -12,7 +12,7 @@ use rand::{rngs::SmallRng, SeedableRng};
 pub struct MCCFRParallel <A : Action, S: State<A>>  {
     runners: Vec<MCCFR<A,S>>,
     threads: usize,
-    strategies: Vec<Arc<RegretStrategy<A>>>,
+    strategies: Vec<Arc<RegretStrategy>>,
 }
 
 impl <A : Action + Sync + Send + 'static, S : State<A> + Send + 'static> MCCFRParallel<A,S> {
@@ -53,7 +53,7 @@ impl <A : Action + Sync + Send + 'static, S : State<A> + Send + 'static> MCCFRPa
     pub fn write_to(&self, file_name: &str) {
         for (i, strategy) in self.strategies.iter().enumerate() {
             let file = format!("{}{}", file_name.to_owned(), format!("_p{}.json", i));
-            let game_mapper = GameMapper::new(None);
+            let game_mapper : GameMapper<A> = GameMapper::new(None);
             strategy.save_table_json(&file, &game_mapper);
         }
     }

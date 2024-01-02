@@ -26,11 +26,11 @@ impl Parsable for u32 {
 
 impl Filterable for u32 {}
 
-pub fn top_values() -> Filter<u32> {
-    is(4).or(is(5))
+pub fn top_values() -> Filter<GoofspielAction> {
+    is(GoofspielAction(4)).or(is(GoofspielAction(5)))
 }
 
-pub fn bottom_values() -> Filter<u32> {
+pub fn bottom_values() -> Filter<GoofspielAction> {
     not(top_values())
 }
 
