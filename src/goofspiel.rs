@@ -139,7 +139,7 @@ impl GoofspielState {
 
 impl State<GoofspielAction> for GoofspielState {
     fn new() -> Self {
-        let internal = Goofspiel::new(3, Scoring::ZeroSum);
+        let internal = Goofspiel::new(7, Scoring::ZeroSum);
         let cards = [
             internal.card_set.clone(),
             internal.card_set.clone(),

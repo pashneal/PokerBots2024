@@ -42,9 +42,9 @@ impl<A: Action, S: State<A>> MCCFR<A, S> {
             nodes_traversed: 0,
             strategies : strategies,
             game_mapper: GameMapper::new(None),
-            bonus: 0.00, // Set to 0.0 and threshold to 1.0 for MCCFR Outcome Sampling
+            bonus: 100.0, // bonus to exploration, Set to 0.0 and threshold to 1.0 for MCCFR Outcome Sampling
             exploration: 0.6,
-            threshold: 1.0,
+            threshold: 10000.0,
         }
     }
 
@@ -68,7 +68,7 @@ impl<A: Action, S: State<A>> MCCFR<A, S> {
                 self.run_averaging_iteration(rng, player, 0, 1.0);
             }
             self.iterations += 1;
-            if i % 100_000 == 0 {
+            if i % 100 == 0 {
                 println!(
                     "Iteration: {}, Nodes Traversed: {}, strategies[0] size: {}",
                     self.iterations,

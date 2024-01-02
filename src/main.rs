@@ -58,10 +58,10 @@ pub fn test_abstractions() -> GameMapper<GoofspielAction> {
 
 pub fn main() -> () {
 
-    let g = Game::<KuhnPokerAction, KuhnPokerState>::new();
+    let g = Game::<GoofspielAction, GoofspielState>::new();
 
-    let mut mcp = MCCFRParallel::<KuhnPokerAction, KuhnPokerState>::new(8);
-    mcp.run_iterations(10000000, 0.6);
+    let mut mcp = MCCFRParallel::<GoofspielAction, GoofspielState>::new(10);
+    mcp.run_iterations(100_000, 0.6);
 
-    mcp.write_to("kuhn_poker");
+    mcp.write_to("goofspiel");
 }
