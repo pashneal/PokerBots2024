@@ -16,7 +16,6 @@ pub type Utility = f32;
 
 
 pub fn main() -> () {
-
     let g = Game::<KuhnPokerAction, KuhnPokerState>::new();
     let mut mcp = MCCFRParallel::<KuhnPokerAction, KuhnPokerState>::new(10);
     mcp.run_iterations(100_000, 0.6);
