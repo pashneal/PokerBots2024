@@ -1,6 +1,6 @@
-use crate::action::*;
+use crate::game_logic::action::*;
 use crate::constants::*;
-use crate::goofspiel::GoofspielAction;
+use crate::implementations::goofspiel::GoofspielAction;
 
 /// Example usage:
 ///
