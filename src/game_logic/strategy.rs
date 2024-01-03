@@ -44,7 +44,7 @@ impl RegretStrategy {
         // TODO: speeeeeeeeeeeeeeeeed, get rid of the clone somehow
         self.policy_map.get(information_set).map(|r| (*r).clone()).map(|v| Vec::from(v))
     }
-    pub fn save_table_json<A : Action>(&self, file_name: &str) {
+    pub fn save_table_json<A : Action>(&self, file_name: &str, action_mapper: &GameMapper<A>) {
         let mut file = File::create(file_name).unwrap();
         let mut table = Vec::new();
         println!("Saving table to {}", file_name);

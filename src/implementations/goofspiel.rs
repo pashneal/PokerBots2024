@@ -179,7 +179,7 @@ impl State<GoofspielAction> for GoofspielState {
         self.active.clone()
     }
 
-    fn get_visibility(&self, action: &GoofspielAction) -> Visibility<GoofspielAction> {
+    fn get_action_visibility(&self, action: &GoofspielAction) -> Visibility<GoofspielAction> {
         match self.active_player() {
             ActivePlayer::Terminal(_) => panic!("Terminal state has no visibility"),
             ActivePlayer::Player(_, _) => Visibility::Private(action.clone()),

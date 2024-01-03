@@ -34,13 +34,6 @@ pub fn bottom_values() -> Filter<GoofspielAction> {
     not(top_values())
 }
 
-pub fn kings() -> Filter<PokerAction> {
-    Filter::regex(r"K.K.")
-}
-
-pub fn suited() -> Filter<PokerAction> {
-    Filter::regex(r".(.).(\1)")
-}
 
 pub fn is<T: Filterable>(value: T) -> Filter<T> {
     Filter::new(value)
@@ -48,10 +41,6 @@ pub fn is<T: Filterable>(value: T) -> Filter<T> {
 
 pub fn not<T: Filterable>(value: Filter<T>) -> Filter<T> {
     Filter::not(value)
-}
-
-pub fn bet_range(range: StdRange<usize>) -> Filter<PokerAction> {
-    Filter::range(range)
 }
 
 pub fn card_range(range: StdRange<usize>) -> Filter<GoofspielAction> {

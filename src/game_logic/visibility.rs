@@ -42,7 +42,7 @@ pub struct VisibilityTracker {
 /// Represents the visibility of a given action to
 /// all players within a game
 #[derive(Clone, Hash, Debug, PartialEq, Eq)]
-pub enum Visibility<A: Action> {
+pub enum Visibility<A: Into<ActionIndex>> {
     Public(A),             //  All players can see the action
     Private(A),            // Only a single player can see the action
     Shared(A, Vec<usize>), // A subset of players can see the action
@@ -59,7 +59,7 @@ impl VisibilityTracker {
         History(self.player_info_sets[player].clone())
     }
 
-    pub fn observe<A: Action>(&mut self, visibility: Visibility<A>, active_player: &ActivePlayer<A>) {
+    pub fn observe<A: Into<ActionIndex> + Clone>(&mut self, visibility: Visibility<A>, active_player_index : Option<usize>) {
         match visibility {
             Visibility::Public(action) => {
                 for player in 0..NUM_REGULAR_PLAYERS {
@@ -67,7 +67,7 @@ impl VisibilityTracker {
                 }
             }
             Visibility::Private(action) => {
-                if let Some(player_index) = active_player.as_index() {
+                if let Some(player_index) = active_player_index {
                     self.player_info_sets[player_index].push(action.into());
                 }
             }
