@@ -1,5 +1,5 @@
-use crate::game_logic::action::{Action, ActionIndex};
-use crate::game_logic::visibility::Visibility;
+use crate::game_logic::action::Action;
+use crate::game_logic::visibility::Observation;
 use crate::{Categorical, Utility};
 
 /// [Neal] Defines a player in the game currently about to take a turn
@@ -48,7 +48,7 @@ pub trait State<A: Action>: Clone {
     ///     Public: The action is visible to all players
     ///     Private: The action is only visible to the active player
     ///     Shared(Vec<_>): The action is visible to the players in the vector
-    fn get_observation(&self, action: &A) -> Visibility<A>;
+    fn get_observation(&self, action: &A) -> Observation<A>;
     //fn get_features<B : Into<ActionIndex> + Clone>(&self, action: &A) -> Vec<Visibility<B>>;
     /// Returns the current player in a given state
     fn active_player(&self) -> ActivePlayer<A>;

@@ -1,7 +1,6 @@
 use crate::game_logic::action::*;
-use crate::distribution::Categorical;
 use crate::game_logic::state::{ActivePlayer, State};
-use crate::game_logic::visibility::Visibility;
+use crate::game_logic::visibility::Observation;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Suit {
@@ -227,7 +226,7 @@ impl State<TexasHoldEmAction> for TexasHoldEmState {
         todo!()
     }
 
-    fn get_observation(&self, action: &TexasHoldEmAction) -> Visibility<TexasHoldEmAction> {
+    fn get_observation(&self, action: &TexasHoldEmAction) -> Observation<TexasHoldEmAction> {
         unimplemented!()
     }
 

@@ -53,6 +53,7 @@ pub struct ObservationTracker {
 ///       (very simple to start off with)
 ///     - it does require us to have a blazingly fast evaluator hehehehehhehe
 ///       (which we don't yet but I'd much rather work on that instead of this)
+#[derive(Clone, Debug)]
 pub enum Feature {
     Suited(bool),  // True if the hand is suited
     Ranks(u8, u8), // Sorted from highest to lowest
@@ -60,50 +61,20 @@ pub enum Feature {
 }
 
 
-pub enum WeightedEval {
-    RoyalFlush,
-    StraightFlush(u8),
-    FourOfAKind(u8),
-    FullHouse(u8, u8),
-    Flush(u8),
-    Straight(u8),
-    ThreeOfAKind(u8),
-    TwoPair(u8),
-    Pair(u8),
-    HighCard(u8),
-}
 
-pub enum Eval {
-    RoyalFlush,
-    StraightFlush,
-    FourOfAKind,
-    FullHouse,
-    Flush,
-    Straight,
-    ThreeOfAKind,
-    TwoPair,
-    Pair,
-    HighCard,
-}
-
-pub enum Texture {
-
-    Pair(usize),
-    
-}
-
-pub enum Observation<A> {
+#[derive(Clone, Debug)]
+pub enum Information<A> {
     Action(A),
     Features(Vec<Feature>),
 }
 
 /// Represents the visibility of a given action to
 /// all players within a game
-#[derive(Clone, Hash, Debug, PartialEq, Eq)]
-pub enum Visibility<A : Action> {
-    Public(A),             //  All players can see the action
-    Private(A),            // only a single player can see the action
-    Shared(A, Vec<usize>), // A subset of players can see the action
+#[derive(Clone, Debug)]
+pub enum Observation<A : Action> {
+    Public(Information<A>),             //  All players can see the action
+    Private(Information<A>),            // only a single player can see the action
+    Shared(Information<A>, Vec<usize>), // A subset of players can see the action
 }
 
 impl ObservationTracker {
@@ -117,21 +88,37 @@ impl ObservationTracker {
         History(self.player_info_sets[player].clone())
     }
 
-    pub fn observe<A: Action> (&mut self, visibility: Visibility<A>, active_player_index : Option<usize>) {
-        match visibility {
-            Visibility::Public(action) => {
-                for player in 0..NUM_REGULAR_PLAYERS {
-                    self.player_info_sets[player].push(action.clone().into());
+    pub fn observe<A: Action> (&mut self, observation: Observation<A>, active_player_index : Option<usize>) {
+        match observation {
+            Observation::Public(info) => {
+                match info { 
+
+                    Information::Action(action) => {
+                        for player in 0..NUM_REGULAR_PLAYERS {
+                            self.player_info_sets[player].push(action.clone().into());
+                        }
+                    }
+                    _ => panic!("Unable to observe non-action information yet"),
                 }
             }
-            Visibility::Private(action) => {
-                if let Some(player_index) = active_player_index {
-                    self.player_info_sets[player_index].push(action.into());
+            Observation::Private(info) => {
+                match info {
+                    Information::Action(action) => {
+                        if let Some(player_index) = active_player_index {
+                            self.player_info_sets[player_index].push(action.clone().into());
+                        }
+                    }
+                    _ => panic!("Unable to observe non-action information yet"),
                 }
             }
-            Visibility::Shared(action, players) => {
-                for player in players {
-                    self.player_info_sets[player].push(action.clone().into());
+            Observation::Shared(info, players) => {
+                match info {
+                    Information::Action(action) => {
+                        for player in players {
+                            self.player_info_sets[player].push(action.clone().into());
+                        }
+                    }
+                    _ => panic!("Unable to observe non-action information yet"),
                 }
             }
         }

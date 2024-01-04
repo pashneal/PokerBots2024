@@ -1,7 +1,7 @@
 use crate::game_logic::action::*;
 use crate::distribution::Categorical;
 use crate::game_logic::state::{ActivePlayer, State};
-use crate::game_logic::visibility::Visibility;
+use crate::game_logic::visibility::{Observation, Information};
 
 #[derive(Debug, Clone, PartialEq, Eq, Copy, Hash)]
 pub enum KuhnPokerAction {
@@ -104,17 +104,17 @@ impl State<KuhnPokerAction> for KuhnPokerState {
         }
     }
 
-    fn get_observation(&self, action: &KuhnPokerAction) -> Visibility<KuhnPokerAction> {
+    fn get_observation(&self, action: &KuhnPokerAction) -> Observation<KuhnPokerAction> {
         match action {
-            KuhnPokerAction::Fold => Visibility::Public(KuhnPokerAction::Fold),
-            KuhnPokerAction::Call => Visibility::Public(KuhnPokerAction::Call),
-            KuhnPokerAction::Check => Visibility::Public(KuhnPokerAction::Check),
+            KuhnPokerAction::Fold => Observation::Public(Information::Action(KuhnPokerAction::Fold)),
+            KuhnPokerAction::Call => Observation::Public(Information::Action(KuhnPokerAction::Call)),
+            KuhnPokerAction::Check => Observation::Public(Information::Action(KuhnPokerAction::Check)),
             KuhnPokerAction::Deal(x) => match self.players_cards {
-                [None, None] => Visibility::Shared(KuhnPokerAction::Deal(*x), vec![0]),
-                [Some(_), None] => Visibility::Shared(KuhnPokerAction::Deal(*x), vec![1]),
+                [None, None] => Observation::Shared(Information::Action(KuhnPokerAction::Deal(*x)), vec![0]),
+                [Some(_), None] => Observation::Shared(Information::Action(KuhnPokerAction::Deal(*x)), vec![1]),
                 _ => panic!("This is not a valid state!"),
             },
-            KuhnPokerAction::Bet => Visibility::Public(KuhnPokerAction::Bet),
+            KuhnPokerAction::Bet => Observation::Public(Information::Action(KuhnPokerAction::Bet)),
         }
     }
 

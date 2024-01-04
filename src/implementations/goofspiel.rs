@@ -2,7 +2,7 @@
 /// figuring out how to implement a game in this framework.
 use crate::game_logic::action::{Action, ActionIndex, Filterable, Parsable};
 use crate::game_logic::state::{ActivePlayer, State};
-use crate::game_logic::visibility::Visibility;
+use crate::game_logic::visibility::{Observation,Information};
 use crate::{Categorical, Utility};
 use bit_set::BitSet;
 
@@ -185,11 +185,11 @@ impl State<GoofspielAction> for GoofspielState {
         self.active.clone()
     }
 
-    fn get_observation(&self, action: &GoofspielAction) -> Visibility<GoofspielAction> {
+    fn get_observation(&self, action: &GoofspielAction) -> Observation<GoofspielAction> {
         match self.active_player() {
             ActivePlayer::Terminal(_) => panic!("Terminal state has no visibility"),
-            ActivePlayer::Player(_, _) => Visibility::Private(action.clone()),
-            ActivePlayer::Chance(_) => Visibility::Public(action.clone()),
+            ActivePlayer::Player(_, _) => Observation::Private(Information::Action(action.clone())),
+            ActivePlayer::Chance(_) => Observation::Public(Information::Action(action.clone())),
         }
     }
 
