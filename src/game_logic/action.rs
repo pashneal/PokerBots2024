@@ -5,7 +5,7 @@ pub use std::ops::RangeInclusive as StdRange;
 
 pub type ActionIndex = u8;
 pub trait Action:
-    Clone + Debug + Hash + PartialEq + Eq + Filterable + Into<ActionIndex>
+    Clone + Debug + Filterable + Into<ActionIndex> + From<ActionIndex>
 {
 }
 

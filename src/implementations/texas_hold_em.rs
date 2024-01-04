@@ -170,7 +170,7 @@ pub enum TexasHoldEmAction {
     Call,
     Check,
     Deal(Hand),
-    Raise(usize, usize), // Pot size, percent
+    Raise(usize, usize), // Pot size, nearest whole percent
 }
 
 
@@ -190,6 +190,12 @@ impl Into<ActionIndex> for TexasHoldEmAction {
     }
 }
 
+impl From<ActionIndex> for TexasHoldEmAction {
+    fn from(index: ActionIndex) -> Self {
+        todo!();
+    }
+}
+
 impl Filterable for TexasHoldEmAction {}
 impl Action for TexasHoldEmAction {}
 
@@ -205,10 +211,12 @@ impl TexasHoldEmState {
         todo!()
     }
 
+    /// One of the two players folded 
     fn folded(&self, delta: f32, player_num: usize) -> ActivePlayer<TexasHoldEmAction> {
         todo!()
     }
 
+    /// The game is over, determine the winner
     fn showdown(&self, delta: f32) -> ActivePlayer<TexasHoldEmAction> {
         todo!()
     }
@@ -219,7 +227,7 @@ impl State<TexasHoldEmAction> for TexasHoldEmState {
         todo!()
     }
 
-    fn get_action_visibility(&self, action: &TexasHoldEmAction) -> Visibility<TexasHoldEmAction> {
+    fn get_observation(&self, action: &TexasHoldEmAction) -> Visibility<TexasHoldEmAction> {
         unimplemented!()
     }
 

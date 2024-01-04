@@ -52,6 +52,12 @@ impl Into<ActionIndex> for GoofspielAction {
     }
 }
 
+impl From<ActionIndex> for GoofspielAction {
+    fn from(_: ActionIndex) -> Self {
+        unimplemented!()
+    }
+}
+
 impl Parsable for GoofspielAction {
     fn to_string(&self) -> Option<String> {
         None
@@ -179,7 +185,7 @@ impl State<GoofspielAction> for GoofspielState {
         self.active.clone()
     }
 
-    fn get_action_visibility(&self, action: &GoofspielAction) -> Visibility<GoofspielAction> {
+    fn get_observation(&self, action: &GoofspielAction) -> Visibility<GoofspielAction> {
         match self.active_player() {
             ActivePlayer::Terminal(_) => panic!("Terminal state has no visibility"),
             ActivePlayer::Player(_, _) => Visibility::Private(action.clone()),

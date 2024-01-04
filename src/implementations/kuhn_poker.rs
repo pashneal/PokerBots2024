@@ -104,7 +104,7 @@ impl State<KuhnPokerAction> for KuhnPokerState {
         }
     }
 
-    fn get_action_visibility(&self, action: &KuhnPokerAction) -> Visibility<KuhnPokerAction> {
+    fn get_observation(&self, action: &KuhnPokerAction) -> Visibility<KuhnPokerAction> {
         match action {
             KuhnPokerAction::Fold => Visibility::Public(KuhnPokerAction::Fold),
             KuhnPokerAction::Call => Visibility::Public(KuhnPokerAction::Call),

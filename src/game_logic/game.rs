@@ -1,7 +1,7 @@
 use crate::constants::*;
 use crate::game_logic::state::State;
 use crate::game_logic::strategy::CondensedInfoSet;
-use crate::game_logic::visibility::VisibilityTracker;
+use crate::game_logic::visibility::ObservationTracker;
 use std::fmt::Debug;
 use std::hash::Hash;
 
@@ -13,7 +13,7 @@ pub struct Game<A: Action, S: State<A>>
 where
     S: Clone,
 {
-    visibility_tracker: VisibilityTracker,
+    visibility_tracker: ObservationTracker,
     state: S,
     action : std::marker::PhantomData<A>,
 }
@@ -29,7 +29,7 @@ where
     pub fn new() -> Self {
         Game {
             state: S::new(),
-            visibility_tracker: VisibilityTracker::new(),
+            visibility_tracker: ObservationTracker::new(),
             action : std::marker::PhantomData,
         }
     }
@@ -37,7 +37,7 @@ where
     /// Advance the game by a single Action
     pub fn play(&mut self, action: A) {
         let active_player = self.state.active_player();
-        let visibility = self.state.get_action_visibility(&action);
+        let visibility = self.state.get_observation(&action);
         self.visibility_tracker.observe(visibility, active_player.as_index());
         self.state.update(action);
     }
