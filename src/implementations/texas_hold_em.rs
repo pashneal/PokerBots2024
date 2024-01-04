@@ -162,7 +162,6 @@ impl Hand {
     }
 }
 
-
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum TexasHoldEmAction {
     Fold,
@@ -171,7 +170,6 @@ pub enum TexasHoldEmAction {
     Deal(Hand),
     Raise(usize, usize), // Pot size, nearest whole percent
 }
-
 
 impl Parsable for TexasHoldEmAction {
     fn to_string(&self) -> Option<String> {
@@ -210,7 +208,7 @@ impl TexasHoldEmState {
         todo!()
     }
 
-    /// One of the two players folded 
+    /// One of the two players folded
     fn folded(&self, delta: f32, player_num: usize) -> ActivePlayer<TexasHoldEmAction> {
         todo!()
     }
@@ -236,11 +234,21 @@ impl State<TexasHoldEmAction> for TexasHoldEmState {
 
     fn update(&mut self, action: TexasHoldEmAction) {
         match action {
-            TexasHoldEmAction::Fold => { unimplemented!() }
-            TexasHoldEmAction::Call => { unimplemented!() }
-            TexasHoldEmAction::Check => { unimplemented!() }
-            TexasHoldEmAction::Deal(x) => { unimplemented!() }
-            TexasHoldEmAction::Raise(pot_size, percent) => { unimplemented!() }
+            TexasHoldEmAction::Fold => {
+                unimplemented!()
+            }
+            TexasHoldEmAction::Call => {
+                unimplemented!()
+            }
+            TexasHoldEmAction::Check => {
+                unimplemented!()
+            }
+            TexasHoldEmAction::Deal(x) => {
+                unimplemented!()
+            }
+            TexasHoldEmAction::Raise(pot_size, percent) => {
+                unimplemented!()
+            }
         }
     }
 }

@@ -1,5 +1,5 @@
-use crate::game_logic::action::*;
 use crate::constants::*;
+use crate::game_logic::action::*;
 use crate::implementations::goofspiel::GoofspielAction;
 
 /// Example usage:
@@ -33,7 +33,6 @@ pub fn top_values() -> Filter<GoofspielAction> {
 pub fn bottom_values() -> Filter<GoofspielAction> {
     not(top_values())
 }
-
 
 pub fn is<T: Filterable>(value: T) -> Filter<T> {
     Filter::new(value)

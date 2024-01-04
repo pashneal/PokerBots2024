@@ -1,10 +1,9 @@
-use crate::game_logic::action::{Action, ActionIndex};
 use crate::game_logic::action::GameMapper;
+use crate::game_logic::action::{Action, ActionIndex};
 use crate::game_logic::state::State;
 use crate::{Categorical, Game};
+use crossbeam::atomic::AtomicCell;
 use dashmap::DashMap;
-use crossbeam::atomic::AtomicCell; 
-
 
 use std::fs::File;
 use std::io::Write;
@@ -16,7 +15,7 @@ pub type PolicyMap = DashMap<CondensedInfoSet, PolicyDistribution>;
 pub type RegretMap = DashMap<CondensedInfoSet, RegretDistribution>;
 
 #[derive(Clone, Debug)]
-pub struct RegretStrategy{
+pub struct RegretStrategy {
     //iterations: AtomicCell<usize>,
     policy_map: PolicyMap,
     regret_map: RegretMap,
@@ -26,25 +25,30 @@ impl Default for RegretStrategy {
     fn default() -> Self {
         RegretStrategy {
             //iterations: 0,
-            policy_map : DashMap::new(),
-            regret_map : DashMap::new(),
+            policy_map: DashMap::new(),
+            regret_map: DashMap::new(),
         }
     }
 }
 
 impl RegretStrategy {
-
     pub fn regrets(&self, information_set: &CondensedInfoSet) -> Option<RegretDistribution> {
         // Hmmmmm??
         // TODO: speeeeeeeeeeeeeeeeed get rid of the clone somehow
-        self.regret_map.get(information_set).map(|r| (*r).clone()).map(|v| Vec::from(v))
+        self.regret_map
+            .get(information_set)
+            .map(|r| (*r).clone())
+            .map(|v| Vec::from(v))
     }
     pub fn policy(&self, information_set: &CondensedInfoSet) -> Option<PolicyDistribution> {
         // Hmmmmm??
         // TODO: speeeeeeeeeeeeeeeeed, get rid of the clone somehow
-        self.policy_map.get(information_set).map(|r| (*r).clone()).map(|v| Vec::from(v))
+        self.policy_map
+            .get(information_set)
+            .map(|r| (*r).clone())
+            .map(|v| Vec::from(v))
     }
-    pub fn save_table_json<A : Action>(&self, file_name: &str, action_mapper: &GameMapper<A>) {
+    pub fn save_table_json<A: Action>(&self, file_name: &str, action_mapper: &GameMapper<A>) {
         let mut file = File::create(file_name).unwrap();
         let mut table = Vec::new();
         println!("Saving table to {}", file_name);
@@ -79,7 +83,6 @@ impl RegretStrategy {
             .expect("Pass at least one of d_reg, d_strat to update")
             .len();
         if let Some(d) = d_strat {
-
             let entry = self.policy_map.entry(info_set.clone());
             let mut val = entry.or_insert_with(|| vec![0.0; len]);
             if len != d.len() {

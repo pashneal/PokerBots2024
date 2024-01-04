@@ -1,19 +1,17 @@
+mod algorithm;
 mod constants;
 mod distribution;
-pub mod implementations;
-mod algorithm;
 mod game_logic;
+pub mod implementations;
 mod util;
 
+pub use self::algorithm::mccfr_parallel::MCCFRParallel;
 pub use self::constants::HOT_ENCODING_SIZE;
 pub use self::distribution::Categorical;
 pub use self::game_logic::game::Game;
-pub use self::algorithm::mccfr_parallel::MCCFRParallel;
 use crate::implementations::kuhn_poker::*;
 
-
 pub type Utility = f32;
-
 
 pub fn main() -> () {
     let g = Game::<KuhnPokerAction, KuhnPokerState>::new();

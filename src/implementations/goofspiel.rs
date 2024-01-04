@@ -2,7 +2,7 @@
 /// figuring out how to implement a game in this framework.
 use crate::game_logic::action::{Action, ActionIndex, Filterable, Parsable};
 use crate::game_logic::state::{ActivePlayer, State};
-use crate::game_logic::visibility::{Observation,Information};
+use crate::game_logic::visibility::{Information, Observation};
 use crate::{Categorical, Utility};
 use bit_set::BitSet;
 
@@ -116,7 +116,10 @@ impl GoofspielState {
                 // Implicitly discard the card if it's a tie
             }
 
-            let player1_cards = self.cards[1].iter().map(|x| GoofspielAction(x as u32)).collect();
+            let player1_cards = self.cards[1]
+                .iter()
+                .map(|x| GoofspielAction(x as u32))
+                .collect();
             let player2_cards = self.cards[2]
                 .iter()
                 .map(|x| GoofspielAction(x as u32))
@@ -150,7 +153,10 @@ impl GoofspielState {
         self.cards[2].remove(action.0 as usize);
 
         // Loop to player 0
-        let available_cards = self.cards[0].iter().map(|x| GoofspielAction(x as u32)).collect();
+        let available_cards = self.cards[0]
+            .iter()
+            .map(|x| GoofspielAction(x as u32))
+            .collect();
         self.active = ActivePlayer::Player(0, available_cards);
     }
 }

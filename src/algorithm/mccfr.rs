@@ -1,13 +1,13 @@
-use crate::game_logic::action::{Action, ActionIndex};
-use crate::game_logic::action::GameMapper;
 use crate::constants::MAX_GAME_DEPTH;
+use crate::game_logic::action::GameMapper;
+use crate::game_logic::action::{Action, ActionIndex};
 use crate::game_logic::state::{ActivePlayer, State};
 use crate::game_logic::strategy::*;
 use crate::{Categorical, Game};
 use rand::Rng;
 use serde_json::json;
-use std::sync::Arc;
 use std::collections::HashMap as SerializableHashMap;
+use std::sync::Arc;
 
 #[derive(Clone, Debug)]
 pub struct MCCFR<A: Action, S: State<A>> {
@@ -35,12 +35,12 @@ pub struct MCCFR<A: Action, S: State<A>> {
 /// a very helpful article can be found here on the sorts of compressions you can do:
 /// https://blog.logrocket.com/rust-serialization-whats-ready-for-production-today/
 impl<A: Action, S: State<A>> MCCFR<A, S> {
-    pub fn new(game: Game<A, S>, strategies : Vec<Arc<RegretStrategy>>) -> Self {
+    pub fn new(game: Game<A, S>, strategies: Vec<Arc<RegretStrategy>>) -> Self {
         MCCFR {
             game,
             iterations: 0,
             nodes_traversed: 0,
-            strategies : strategies,
+            strategies: strategies,
             game_mapper: GameMapper::new(None),
             bonus: 100.0, // bonus to exploration, Set to 0.0 and threshold to 1.0 for MCCFR Outcome Sampling
             exploration: 0.6,
@@ -88,9 +88,7 @@ impl<A: Action, S: State<A>> MCCFR<A, S> {
     ) -> f32 {
         self.nodes_traversed += 1;
         match self.game.active_player() {
-            ActivePlayer::Terminal(utilities) => {
-                utilities[updated_player] / q
-            }
+            ActivePlayer::Terminal(utilities) => utilities[updated_player] / q,
             ActivePlayer::Chance(actions) => {
                 let (action, default_index) = actions.sample_and_index(rng);
                 let default_index = default_index as ActionIndex;
@@ -175,7 +173,6 @@ impl<A: Action, S: State<A>> MCCFR<A, S> {
             }
         }
     }
-
 }
 
 /// Average sampling used in line with this paper:

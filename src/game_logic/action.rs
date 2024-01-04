@@ -4,10 +4,7 @@ use std::hash::Hash;
 pub use std::ops::RangeInclusive as StdRange;
 
 pub type ActionIndex = u8;
-pub trait Action:
-    Clone + Debug + Filterable + Into<ActionIndex> + From<ActionIndex>
-{
-}
+pub trait Action: Clone + Debug + Filterable + Into<ActionIndex> + From<ActionIndex> {}
 
 pub type ActionFilter<A> = (Filter<A>, A);
 
@@ -117,14 +114,13 @@ impl<A: Filterable + Action> GameMapper<A> {
         }
     }
 
-    pub fn map_and_index(&self, action: A, depth: usize, index : ActionIndex) -> (A, ActionIndex) {
+    pub fn map_and_index(&self, action: A, depth: usize, index: ActionIndex) -> (A, ActionIndex) {
         let mapper = &self.depth_specific_maps[depth];
         match mapper {
             Some(mapper) => mapper.map_and_index(action),
             None => (action, index),
         }
     }
-
 
     pub fn map_action(&self, action: A, depth: usize) -> A {
         // TODO: since this is a pure function we can memoize it
@@ -159,8 +155,6 @@ impl<A: Filterable + Action> GameMapper<A> {
         self.max_encoding_size
     }
 }
-
-
 
 #[derive(Debug, Clone)]
 pub struct Clause<T>

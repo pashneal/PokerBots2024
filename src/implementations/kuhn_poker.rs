@@ -1,7 +1,7 @@
-use crate::game_logic::action::*;
 use crate::distribution::Categorical;
+use crate::game_logic::action::*;
 use crate::game_logic::state::{ActivePlayer, State};
-use crate::game_logic::visibility::{Observation, Information};
+use crate::game_logic::visibility::{Information, Observation};
 
 #[derive(Debug, Clone, PartialEq, Eq, Copy, Hash)]
 pub enum KuhnPokerAction {
@@ -11,7 +11,6 @@ pub enum KuhnPokerAction {
     Deal(u8),
     Bet,
 }
-
 
 impl Parsable for KuhnPokerAction {
     fn to_string(&self) -> Option<String> {
@@ -106,12 +105,22 @@ impl State<KuhnPokerAction> for KuhnPokerState {
 
     fn get_observation(&self, action: &KuhnPokerAction) -> Observation<KuhnPokerAction> {
         match action {
-            KuhnPokerAction::Fold => Observation::Public(Information::Action(KuhnPokerAction::Fold)),
-            KuhnPokerAction::Call => Observation::Public(Information::Action(KuhnPokerAction::Call)),
-            KuhnPokerAction::Check => Observation::Public(Information::Action(KuhnPokerAction::Check)),
+            KuhnPokerAction::Fold => {
+                Observation::Public(Information::Action(KuhnPokerAction::Fold))
+            }
+            KuhnPokerAction::Call => {
+                Observation::Public(Information::Action(KuhnPokerAction::Call))
+            }
+            KuhnPokerAction::Check => {
+                Observation::Public(Information::Action(KuhnPokerAction::Check))
+            }
             KuhnPokerAction::Deal(x) => match self.players_cards {
-                [None, None] => Observation::Shared(Information::Action(KuhnPokerAction::Deal(*x)), vec![0]),
-                [Some(_), None] => Observation::Shared(Information::Action(KuhnPokerAction::Deal(*x)), vec![1]),
+                [None, None] => {
+                    Observation::Shared(Information::Action(KuhnPokerAction::Deal(*x)), vec![0])
+                }
+                [Some(_), None] => {
+                    Observation::Shared(Information::Action(KuhnPokerAction::Deal(*x)), vec![1])
+                }
                 _ => panic!("This is not a valid state!"),
             },
             KuhnPokerAction::Bet => Observation::Public(Information::Action(KuhnPokerAction::Bet)),
