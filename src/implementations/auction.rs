@@ -3,6 +3,8 @@ use crate::distribution::Categorical;
 use crate::game_logic::action::*;
 use crate::game_logic::state::{ActivePlayer, State};
 use crate::game_logic::visibility::{Information, Observation};
+use crate::eval::rank::HandRanker;
+use std::cmp::Ordering;
 use rand::prelude::*;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -117,26 +119,28 @@ impl Parsable for Card {
         Some(string)
     }
     fn to_usize(&self) -> Option<usize> {
-        let index  = match self.suit {
+        let suit = match self.suit {
             Suit::Hearts => 0,
             Suit::Diamonds => 1,
             Suit::Clubs => 2,
             Suit::Spades => 3,
-        } * 13 + match self.value {
-            Value::Two => 0,
-            Value::Three => 1,
-            Value::Four => 2,
-            Value::Five => 3,
-            Value::Six => 4,
-            Value::Seven => 5,
-            Value::Eight => 6,
-            Value::Nine => 7,
-            Value::Ten => 8,
-            Value::Jack => 9,
-            Value::Queen => 10,
-            Value::King => 11,
-            Value::Ace => 12,
         };
+        let value = match self.value {
+            Value::Ace => 0,
+            Value::King => 1,
+            Value::Queen => 2,
+            Value::Jack => 3,
+            Value::Ten => 4,
+            Value::Nine => 5,
+            Value::Eight => 6,
+            Value::Seven => 7,
+            Value::Six => 8,
+            Value::Five => 9,
+            Value::Four => 10,
+            Value::Three => 11,
+            Value::Two => 12,
+        };
+        let index = suit + value*4;
         Some(index)
         
     }
@@ -144,28 +148,28 @@ impl Parsable for Card {
 pub type CardIndex = usize;
 impl Card {
     pub fn from_index(index: CardIndex) -> Self {
-        let suit = match index / 13 {
+        let suit = match index % 4 {
             0 => Suit::Hearts,
             1 => Suit::Diamonds,
             2 => Suit::Clubs,
             3 => Suit::Spades,
-            _ => panic!("Invalid suit index"),
-        };
-        let value = match index % 13 {
-            0 => Value::Two,
-            1 => Value::Three,
-            2 => Value::Four,
-            3 => Value::Five,
-            4 => Value::Six,
-            5 => Value::Seven,
-            6 => Value::Eight,
-            7 => Value::Nine,
-            8 => Value::Ten,
-            9 => Value::Jack,
-            10 => Value::Queen,
-            11 => Value::King,
-            12 => Value::Ace,
             _ => panic!("Invalid value index"),
+        };
+        let value = match index / 4 {
+            0 => Value::Ace,
+            1 => Value::King,
+            2 => Value::Queen,
+            3 => Value::Jack,
+            4 => Value::Ten,
+            5 => Value::Nine,
+            6 => Value::Eight,
+            7 => Value::Seven,
+            8 => Value::Six,
+            9 => Value::Five,
+            10 => Value::Four,
+            11 => Value::Three,
+            12 => Value::Two,
+            _ => panic!("Invalid suit index"),
         };
         Card { value, suit }
     }
@@ -227,6 +231,14 @@ impl Hand {
 
     fn len(&self) -> usize {
         self.cards.len()
+    }
+
+    fn as_u8<'a>(&'a self) -> &'a [u8]{
+        let mut result = Vec::new();
+        for card in self.cards.clone() {
+            result.push(card.to_usize().unwrap() as u8);
+        }
+        result.as_slice()
     }
 }
 
@@ -445,7 +457,43 @@ impl AuctionPokerState {
 
     /// The game is over, determine the winner
     fn showdown(&self) -> ActivePlayer<AuctionPokerAction> {
-        unimplemented!()
+        let mut player0 = self.player_hands[0].clone();
+        let mut player1 = self.player_hands[1].clone();
+
+        for card in &self.community_cards {
+            player0.add_card(card.clone());
+            player1.add_card(card.clone());
+        }
+
+        let player0_hand_len = player0.len();
+        let player1_hand_len = player1.len();
+
+        // TODO: probably a bit slow to keep reloading the library
+        let hand_ranker = HandRanker::new();
+
+        let player1_rank = match player1_hand_len {
+            8 => hand_ranker.rank8(player1.as_u8()),
+            7 => hand_ranker.rank7(player1.as_u8()),
+            _ => panic!("Invalid hand + community length"),
+        };
+
+        let player0_rank = match player0_hand_len {
+            8 => hand_ranker.rank8(player0.as_u8()),
+            7 => hand_ranker.rank7(player0.as_u8()),
+            _ => panic!("Invalid hand + community length"),
+        };
+
+        let contribution0 = (STACK_SIZE - self.stacks[0]) as f32;
+        let contribution1 = (STACK_SIZE - self.stacks[1]) as f32;
+        let diff = contribution0 - contribution1;
+
+        let deltas = match player0_rank.cmp(&player1_rank) {
+            Ordering::Greater => vec![contribution1, -contribution1],
+            Ordering::Less => vec![-contribution0, contribution0],
+            Ordering::Equal => panic!("We aren't exactly sure of the rules for ties yet"), 
+        };
+
+        ActivePlayer::Terminal(deltas)
     }
 }
 
@@ -850,5 +898,13 @@ mod tests {
     #[test]
     fn test_reraise() {
         // Make sure that reraising works
+    }
+
+    #[test]
+    fn test_card_coherence() {
+        let card_str = "9d";
+        let card_interpreted = Card::from_index(Card::new(card_str).to_usize().unwrap());
+        assert_eq!(card_interpreted, Card::new(card_str));
+        assert_eq!(card_interpreted.to_string().unwrap(), card_str.to_owned());
     }
 }

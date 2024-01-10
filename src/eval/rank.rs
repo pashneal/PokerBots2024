@@ -99,25 +99,46 @@ mod tests {
         let high_card = [
             Card::new("2c"),
             Card::new("3d"),
-            Card::new("4c"),
+            Card::new("7h"),
             Card::new("5d"),
             Card::new("6c"),
-            Card::new("7d"),
-            Card::new("8c"),
+            Card::new("9d"),
+            Card::new("Ac"),
         ];
         let high_card = high_card.iter().map(|c| c.to_usize().unwrap() as u8).collect::<Vec<u8>>();
+
+        let lower_high_card = [
+            Card::new("2c"),
+            Card::new("3d"),
+            Card::new("7h"),
+            Card::new("5d"),
+            Card::new("6c"),
+            Card::new("9s"),
+            Card::new("Kc"),
+        ];
+        let lower_high_card = lower_high_card.iter().map(|c| c.to_usize().unwrap() as u8).collect::<Vec<u8>>();
+
+        // Lower high card should lose to higher high card
+        assert!(hand_ranker.rank7(&high_card) > hand_ranker.rank7(&lower_high_card));
         // Two pair should beat high card
         assert!(hand_ranker.rank7(&two_pair) > hand_ranker.rank7(&high_card));
+        // Two pair should beat lower high card
+        assert!(hand_ranker.rank7(&two_pair) > hand_ranker.rank7(&lower_high_card));
         // Straight flush should beat two pair
         assert!(hand_ranker.rank7(&straight_flush) > hand_ranker.rank7(&two_pair));
         // Straight flush should beat high card
         assert!(hand_ranker.rank7(&straight_flush) > hand_ranker.rank7(&high_card));
+        // Straight flush should beat lower high card
+        assert!(hand_ranker.rank7(&straight_flush) > hand_ranker.rank7(&lower_high_card));
         // Royal flush should beat straight flush
         assert!(hand_ranker.rank7(&royal_flush) > hand_ranker.rank7(&straight_flush));
         // Royal flush should beat two pair
         assert!(hand_ranker.rank7(&royal_flush) > hand_ranker.rank7(&two_pair));
         // Royal flush should beat high card
         assert!(hand_ranker.rank7(&royal_flush) > hand_ranker.rank7(&high_card));
+        // Royal flush should beat lower high card
+        assert!(hand_ranker.rank7(&royal_flush) > hand_ranker.rank7(&lower_high_card));
+        // If these tests pass, you're probably using the SKPokerEval library correctly!
 
     }
 }
