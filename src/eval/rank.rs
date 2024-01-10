@@ -1,9 +1,9 @@
-use libloading::{Library, Symbol};
-use crate::implementations::auction::Card;
 use crate::game_logic::action::Parsable;
+use crate::implementations::auction::Card;
+use libloading::{Library, Symbol};
 
 pub struct HandRanker {
-     library : Library,
+    library: Library,
 }
 
 impl HandRanker {
@@ -16,19 +16,25 @@ impl HandRanker {
 
     pub fn rank7(&self, cards: &[u8]) -> u32 {
         unsafe {
-            let func: Symbol<unsafe extern fn(u8,u8,u8,u8,u8,u8,u8) -> u32> = self.library.get(b"get_rank").unwrap();
-            func(cards[0], cards[1], cards[2], cards[3], cards[4], cards[5], cards[6])
+            let func: Symbol<unsafe extern "C" fn(u8, u8, u8, u8, u8, u8, u8) -> u32> =
+                self.library.get(b"get_rank").unwrap();
+            func(
+                cards[0], cards[1], cards[2], cards[3], cards[4], cards[5], cards[6],
+            )
         }
     }
 
     pub fn rank8(&self, cards: &[u8]) -> u32 {
         unsafe {
-            let func: Symbol<unsafe extern fn(u8,u8,u8,u8,u8,u8,u8) -> u32> = self.library.get(b"get_rank").unwrap();
+            let func: Symbol<unsafe extern "C" fn(u8, u8, u8, u8, u8, u8, u8) -> u32> =
+                self.library.get(b"get_rank").unwrap();
             let mut max_rank = 0;
             for i in 0..8 {
                 let mut cards8 = cards.iter().map(|c| *c).collect::<Vec<u8>>();
                 cards8.swap(i, 7);
-                let rank = func(cards8[0], cards8[1], cards8[2], cards8[3], cards8[4], cards8[5], cards8[6]);
+                let rank = func(
+                    cards8[0], cards8[1], cards8[2], cards8[3], cards8[4], cards8[5], cards8[6],
+                );
                 if rank > max_rank {
                     max_rank = rank;
                 }
@@ -45,7 +51,7 @@ mod tests {
     #[test]
     fn test_load_libso() {
         let hand_ranker = HandRanker::new();
-        let cards = [1,2,3,4,5,6,7];
+        let cards = [1, 2, 3, 4, 5, 6, 7];
         let rank = hand_ranker.rank7(&cards);
         assert_eq!(rank, 7440);
     }
@@ -53,7 +59,7 @@ mod tests {
     #[test]
     fn test_rank8() {
         let hand_ranker = HandRanker::new();
-        let cards = [5,6,7,8,9,10,11,12];
+        let cards = [5, 6, 7, 8, 9, 10, 11, 12];
         let rank = hand_ranker.rank8(&cards);
         assert_eq!(rank, 7427);
     }
@@ -70,8 +76,10 @@ mod tests {
             Card::new("2d"),
             Card::new("3d"),
         ];
-        let royal_flush = royal_flush.iter().map(|c| c.to_usize().unwrap() as u8).collect::<Vec<u8>>();
-
+        let royal_flush = royal_flush
+            .iter()
+            .map(|c| c.to_usize().unwrap() as u8)
+            .collect::<Vec<u8>>();
 
         let straight_flush = [
             Card::new("2c"),
@@ -82,7 +90,10 @@ mod tests {
             Card::new("7c"),
             Card::new("8c"),
         ];
-        let straight_flush = straight_flush.iter().map(|c| c.to_usize().unwrap() as u8).collect::<Vec<u8>>();
+        let straight_flush = straight_flush
+            .iter()
+            .map(|c| c.to_usize().unwrap() as u8)
+            .collect::<Vec<u8>>();
 
         let two_pair = [
             Card::new("2c"),
@@ -92,9 +103,11 @@ mod tests {
             Card::new("4c"),
             Card::new("4d"),
             Card::new("5c"),
-        ]; 
-        let two_pair = two_pair.iter().map(|c| c.to_usize().unwrap() as u8).collect::<Vec<u8>>();
-
+        ];
+        let two_pair = two_pair
+            .iter()
+            .map(|c| c.to_usize().unwrap() as u8)
+            .collect::<Vec<u8>>();
 
         let high_card = [
             Card::new("2c"),
@@ -105,7 +118,10 @@ mod tests {
             Card::new("9d"),
             Card::new("Ac"),
         ];
-        let high_card = high_card.iter().map(|c| c.to_usize().unwrap() as u8).collect::<Vec<u8>>();
+        let high_card = high_card
+            .iter()
+            .map(|c| c.to_usize().unwrap() as u8)
+            .collect::<Vec<u8>>();
 
         let lower_high_card = [
             Card::new("2c"),
@@ -116,7 +132,10 @@ mod tests {
             Card::new("9s"),
             Card::new("Kc"),
         ];
-        let lower_high_card = lower_high_card.iter().map(|c| c.to_usize().unwrap() as u8).collect::<Vec<u8>>();
+        let lower_high_card = lower_high_card
+            .iter()
+            .map(|c| c.to_usize().unwrap() as u8)
+            .collect::<Vec<u8>>();
 
         // Lower high card should lose to higher high card
         assert!(hand_ranker.rank7(&high_card) > hand_ranker.rank7(&lower_high_card));
@@ -139,6 +158,5 @@ mod tests {
         // Royal flush should beat lower high card
         assert!(hand_ranker.rank7(&royal_flush) > hand_ranker.rank7(&lower_high_card));
         // If these tests pass, you're probably using the SKPokerEval library correctly!
-
     }
 }

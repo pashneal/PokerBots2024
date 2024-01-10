@@ -1,11 +1,11 @@
 use crate::constants::*;
 use crate::distribution::Categorical;
+use crate::eval::rank::HandRanker;
 use crate::game_logic::action::*;
 use crate::game_logic::state::{ActivePlayer, State};
 use crate::game_logic::visibility::{Information, Observation};
-use crate::eval::rank::HandRanker;
-use std::cmp::Ordering;
 use rand::prelude::*;
+use std::cmp::Ordering;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Suit {
@@ -140,9 +140,8 @@ impl Parsable for Card {
             Value::Three => 11,
             Value::Two => 12,
         };
-        let index = suit + value*4;
+        let index = suit + value * 4;
         Some(index)
-        
     }
 }
 pub type CardIndex = usize;
@@ -233,7 +232,7 @@ impl Hand {
         self.cards.len()
     }
 
-    fn as_u8(&self) -> Box<[u8]>{
+    fn as_u8(&self) -> Box<[u8]> {
         let mut result = Vec::new();
         for card in self.cards.clone() {
             result.push(card.to_usize().unwrap() as u8);
@@ -489,7 +488,7 @@ impl AuctionPokerState {
         let contribution0 = contribution0 as f32;
         let contribution1 = contribution1 as f32;
 
-        // See piazza: extra chip awarded to BB in an odd pot with a tie (BB always 
+        // See piazza: extra chip awarded to BB in an odd pot with a tie (BB always
         // second to play)
         let extra_chip = (self.pot % 2) as f32;
         let half_pot = (self.pot as f32 - extra_chip) / 2.0;
@@ -498,9 +497,9 @@ impl AuctionPokerState {
             Ordering::Greater => vec![contribution1, -contribution1],
             Ordering::Less => vec![-contribution0, contribution0],
             Ordering::Equal => vec![
-                contribution0 - half_pot,  
-                contribution1 - half_pot + extra_chip
-            ], 
+                contribution0 - half_pot,
+                contribution1 - half_pot + extra_chip,
+            ],
         };
 
         ActivePlayer::Terminal(deltas)
