@@ -957,6 +957,12 @@ mod tests {
         }
     }
 
+    #[test]
+    fn test_all_in() {
+        // Make sure that all-in works especially when there are asymmetric 
+        // contributions to the stack
+        // TODO
+    }
 
     #[test]
     fn test_reraise() {
