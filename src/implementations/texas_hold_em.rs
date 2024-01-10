@@ -167,7 +167,8 @@ pub enum TexasHoldEmAction {
     Fold,
     Call,
     Check,
-    Deal(Hand),
+    DealHole(Hand),
+    DealCommunity(Vec<Card>),
     Raise(usize, usize), // Pot size, nearest whole percent
 }
 
@@ -243,7 +244,10 @@ impl State<TexasHoldEmAction> for TexasHoldEmState {
             TexasHoldEmAction::Check => {
                 unimplemented!()
             }
-            TexasHoldEmAction::Deal(x) => {
+            TexasHoldEmAction::DealHole(x) => {
+                unimplemented!()
+            }
+            TexasHoldEmAction::DealCommunity(x) => {
                 unimplemented!()
             }
             TexasHoldEmAction::Raise(pot_size, percent) => {

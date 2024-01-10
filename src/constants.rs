@@ -4,3 +4,8 @@ pub const MAX_GAME_DEPTH: usize = 40;
 pub const NUM_REGULAR_PLAYERS: usize = 2;
 pub const CHANCE_PLAYERS: usize = 1;
 pub const TOTAL_PLAYERS: usize = NUM_REGULAR_PLAYERS + CHANCE_PLAYERS;
+
+pub const BIG_BLIND: u32 = 2;
+pub const LITTLE_BLIND: u32 = 1;
+pub const MIN_BET_AMOUNT: u32 = BIG_BLIND;
+pub const STACK_SIZE: u32 = 400;
