@@ -13,7 +13,7 @@ pub struct Game<A: Action, S: State<A>>
 where
     S: Clone,
 {
-    visibility_tracker: ObservationTracker,
+    observation_tracker: ObservationTracker,
     state: S,
     action: std::marker::PhantomData<A>,
 }
@@ -29,7 +29,7 @@ where
     pub fn new() -> Self {
         Game {
             state: S::new(),
-            visibility_tracker: ObservationTracker::new(),
+            observation_tracker: ObservationTracker::new(),
             action: std::marker::PhantomData,
         }
     }
@@ -38,13 +38,13 @@ where
     pub fn play(&mut self, action: A) {
         let active_player = self.state.active_player();
         let visibility = self.state.get_observation(&action);
-        self.visibility_tracker
+        self.observation_tracker
             .observe(visibility, active_player.as_index());
         self.state.update(action);
     }
 
     pub fn history(&self, player: usize) -> CondensedInfoSet {
-        self.visibility_tracker.get_history(player).into_condensed()
+        self.observation_tracker.get_history(player).into_condensed()
     }
 
     pub fn active_player(&self) -> ActivePlayer<A> {
