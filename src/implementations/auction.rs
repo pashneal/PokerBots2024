@@ -483,14 +483,20 @@ impl AuctionPokerState {
             _ => panic!("Invalid hand + community length"),
         };
 
-        let contribution0 = (STACK_SIZE - self.stacks[0]) as f32;
-        let contribution1 = (STACK_SIZE - self.stacks[1]) as f32;
-        let diff = contribution0 - contribution1;
+        let contribution0 = (STACK_SIZE - self.stacks[0]);
+        let contribution1 = (STACK_SIZE - self.stacks[1]);
+        let extra_chip = (contribution1 + contribution0) % 2;
+
+        let contribution0 = contribution0 as f32;
+        let contribution1 = contribution1 as f32;
+        // See piazza: extra chip awarded to BB in an odd pot
+        let extra_chip = (self.pot % 2) as f32;
+        let half_pot = ((self.pot - extra_chip) / 2) as f32;  
 
         let deltas = match player0_rank.cmp(&player1_rank) {
             Ordering::Greater => vec![contribution1, -contribution1],
             Ordering::Less => vec![-contribution0, contribution0],
-            Ordering::Equal => panic!("We aren't exactly sure of the rules for ties yet"), 
+            Ordering::Equal => vec![contribution0 - half_pot,  contribution1 - half_pot + extra_chip], 
         };
 
         ActivePlayer::Terminal(deltas)
