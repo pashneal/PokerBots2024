@@ -233,12 +233,12 @@ impl Hand {
         self.cards.len()
     }
 
-    fn as_u8<'a>(&'a self) -> &'a [u8]{
+    fn as_u8(&self) -> Box<[u8]>{
         let mut result = Vec::new();
         for card in self.cards.clone() {
             result.push(card.to_usize().unwrap() as u8);
         }
-        result.as_slice()
+        result.clone().into_boxed_slice()
     }
 }
 
@@ -472,26 +472,26 @@ impl AuctionPokerState {
         let hand_ranker = HandRanker::new();
 
         let player1_rank = match player1_hand_len {
-            8 => hand_ranker.rank8(player1.as_u8()),
-            7 => hand_ranker.rank7(player1.as_u8()),
+            8 => hand_ranker.rank8(&player1.as_u8()),
+            7 => hand_ranker.rank7(&player1.as_u8()),
             _ => panic!("Invalid hand + community length"),
         };
 
         let player0_rank = match player0_hand_len {
-            8 => hand_ranker.rank8(player0.as_u8()),
-            7 => hand_ranker.rank7(player0.as_u8()),
+            8 => hand_ranker.rank8(&player0.as_u8()),
+            7 => hand_ranker.rank7(&player0.as_u8()),
             _ => panic!("Invalid hand + community length"),
         };
 
-        let contribution0 = (STACK_SIZE - self.stacks[0]);
-        let contribution1 = (STACK_SIZE - self.stacks[1]);
+        let contribution0 = STACK_SIZE - self.stacks[0];
+        let contribution1 = STACK_SIZE - self.stacks[1];
         let extra_chip = (contribution1 + contribution0) % 2;
 
         let contribution0 = contribution0 as f32;
         let contribution1 = contribution1 as f32;
         // See piazza: extra chip awarded to BB in an odd pot
         let extra_chip = (self.pot % 2) as f32;
-        let half_pot = ((self.pot - extra_chip) / 2) as f32;  
+        let half_pot = (self.pot as f32 - extra_chip) / 2.0;
 
         let deltas = match player0_rank.cmp(&player1_rank) {
             Ordering::Greater => vec![contribution1, -contribution1],
