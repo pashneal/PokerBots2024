@@ -320,9 +320,9 @@ impl AuctionPokerState {
 
     fn next_dealer(&self) -> ActivePlayer<AuctionPokerAction> {
         match self.community_cards.len() {
-            0 => self.flop(),
-            3 => self.turn(),
-            4 => self.river(),
+            0 => self.deal(),
+            3 => self.deal(),
+            4 => self.deal(),
             5 => self.showdown(),
             _ => panic!("Cannot deal to community when there are this many community cards."),
         }
@@ -336,9 +336,7 @@ impl AuctionPokerState {
         ActivePlayer::Chance(Categorical::uniform(cards))
     }
 
-    fn flop(&self) -> ActivePlayer<AuctionPokerAction> {
-        debug_assert_eq!(self.community_cards.len() < 3, true);
-
+    fn deal(&self) -> ActivePlayer<AuctionPokerAction> {
         let mut cards = Vec::new();
         for i in 0..52 {
             if self.card_bits & (1 << i) == 0 {
@@ -349,27 +347,6 @@ impl AuctionPokerState {
         ActivePlayer::Chance(Categorical::uniform(cards))
     }
 
-    fn turn(&self) -> ActivePlayer<AuctionPokerAction> {
-        debug_assert_eq!(self.community_cards.len() < 4, true);
-        let mut cards = Vec::new();
-        for i in 0..52 {
-            if self.card_bits & (1 << i) == 0 {
-                cards.push(AuctionPokerAction::DealCommunity(i));
-            }
-        }
-        ActivePlayer::Chance(Categorical::uniform(cards))
-    }
-
-    fn river(&self) -> ActivePlayer<AuctionPokerAction> {
-        debug_assert_eq!(self.community_cards.len() < 5, true);
-        let mut cards = Vec::new();
-        for i in 0..52 {
-            if self.card_bits & (1 << i) == 0 {
-                cards.push(AuctionPokerAction::DealCommunity(i));
-            }
-        }
-        ActivePlayer::Chance(Categorical::uniform(cards))
-    }
 
     fn betting_round(&self, player_num: usize) -> ActivePlayer<AuctionPokerAction> {
         // Amount needed to bet/raise instead of call
@@ -593,10 +570,15 @@ impl State<AuctionPokerAction> for AuctionPokerState {
             AuctionPokerAction::DealCommunity(card_index) => {
                 self.community_cards.push(Card::from_index(card_index));
                 self.card_bits |= 1 << card_index;
-                if self.community_cards.len() < 3 {
-                    self.active_player = self.flop();
-                } else {
-                    self.active_player = self.auction();
+                let street = self.community_cards.len();
+                let bidding_round_over = self.bids[1].is_some();
+                self.active_player = match (street, bidding_round_over) {
+                    (0..=2, _) => self.deal(),
+                    (3, false) => self.auction(),
+                    (3, true) => self.betting_round(0),
+                    (4, _) => self.betting_round(0),
+                    (5, _) => self.betting_round(0),
+                    _ => panic!("Unsure what to do after dealing in this situation")
                 }
             }
             AuctionPokerAction::Raise(amount, _) => {
@@ -896,7 +878,80 @@ mod tests {
     }
 
     #[test]
-    fn test_showdown() {}
+    fn test_showdown() {
+        // Should win the pot when dealt the nuts
+        let mut state = AuctionPokerState::new();
+        state.update(AuctionPokerAction::DealHole(Card::new("Ah").to_usize().unwrap(), 0));
+        state.update(AuctionPokerAction::DealHole(Card::new("Ac").to_usize().unwrap(), 0));
+        state.update(AuctionPokerAction::DealHole(Card::new("2c").to_usize().unwrap(), 1));
+        state.update(AuctionPokerAction::DealHole(Card::new("2h").to_usize().unwrap(), 1));
+
+        // First betting round (pre-flop)
+        state.update(AuctionPokerAction::Raise(9, 1337));
+        state.update(AuctionPokerAction::Call);
+
+        // pot = 18
+
+        // Flop dealt
+        state.update(AuctionPokerAction::DealCommunity(Card::new("Ad").to_usize().unwrap()));
+        state.update(AuctionPokerAction::DealCommunity(Card::new("As").to_usize().unwrap()));
+        state.update(AuctionPokerAction::DealCommunity(Card::new("2d").to_usize().unwrap()));
+
+        // Auction starts
+        state.update(AuctionPokerAction::Bid(50));
+        state.update(AuctionPokerAction::Bid(25));
+
+        // Make sure that player 0 won!
+        // pot = 18 + 25 = 43 (9 contributed by player 1)
+        assert_eq!(state.active_player().actions().contains(&AuctionPokerAction::Auction(Winner::Player(0))), true);
+
+        state.update(AuctionPokerAction::Auction(Winner::Player(0)));
+        state.update(AuctionPokerAction::DealHole(Card::new("2c").to_usize().unwrap(), 0));
+
+        // Make sure that we have moved on to the next betting round!
+        // By checking if it's the first player and we're allowed to raise 
+        assert_eq!(state.active_player().actions().iter().any(|x| matches!(x, AuctionPokerAction::Raise(_,_))), true);
+        assert_eq!(state.active_player().player_num() == 0, true);
+
+        state.update(AuctionPokerAction::Check);
+        state.update(AuctionPokerAction::Check);
+
+        // Make sure we're in the card dealing round
+        assert!(state.active_player().actions().iter().any( |x| matches!( x, AuctionPokerAction::DealCommunity(_))));
+
+        // Turn dealt
+        state.update(AuctionPokerAction::DealCommunity(Card::new("Qc").to_usize().unwrap()));
+
+        // Make sure that we have moved on to the next betting round!
+        println!(" Active player {:?}" , state.active_player());
+        assert_eq!(state.active_player().actions().iter().any(|x| matches!(x, AuctionPokerAction::Raise(_,_))), true);
+        assert_eq!(state.active_player().player_num() == 0, true);
+
+        state.update(AuctionPokerAction::Check);
+        state.update(AuctionPokerAction::Check);
+
+        // Make sure we're in the card dealing round
+        assert!(state.active_player().actions().iter().any( |x| matches!( x, AuctionPokerAction::DealCommunity(_))));
+
+
+        // River dealt
+        state.update(AuctionPokerAction::DealCommunity(Card::new("3c").to_usize().unwrap()));
+
+        // Make sure that we have moved on to the next betting round!
+        // By checking if it's the first player and we're allowed to raise 
+        assert_eq!(state.active_player().actions().iter().any(|x| matches!(x, AuctionPokerAction::Raise(_,_))), true);
+        assert_eq!(state.active_player().player_num() == 0, true);
+
+
+        state.update(AuctionPokerAction::Check);
+        state.update(AuctionPokerAction::Check);
+
+        assert!(matches!( state.active_player(), ActivePlayer::Terminal(_)));
+        if let ActivePlayer::Terminal(deltas) = state.active_player() {
+            assert!((deltas[0] - 9.0) < 0.00001);
+            assert!((deltas[1] - -9.0) < 0.00001);
+        }
+    }
 
     #[test]
     fn test_sample_playthrough() {
