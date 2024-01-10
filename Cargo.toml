@@ -12,6 +12,7 @@ serde_json = "1.0"
 regex = "1.10.2"
 dashmap = "5.5.3"
 crossbeam = "0.8.3"
+libloading = "0.8.1"
 
 [profile.release]
 debug = true

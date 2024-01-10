@@ -4,6 +4,7 @@ mod distribution;
 mod game_logic;
 pub mod implementations;
 mod util;
+mod eval;
 
 pub use self::algorithm::mccfr_parallel::MCCFRParallel;
 pub use self::constants::HOT_ENCODING_SIZE;

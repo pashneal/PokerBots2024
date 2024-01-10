@@ -117,12 +117,33 @@ impl Parsable for Card {
         Some(string)
     }
     fn to_usize(&self) -> Option<usize> {
-        None
+        let index  = match self.suit {
+            Suit::Hearts => 0,
+            Suit::Diamonds => 1,
+            Suit::Clubs => 2,
+            Suit::Spades => 3,
+        } * 13 + match self.value {
+            Value::Two => 0,
+            Value::Three => 1,
+            Value::Four => 2,
+            Value::Five => 3,
+            Value::Six => 4,
+            Value::Seven => 5,
+            Value::Eight => 6,
+            Value::Nine => 7,
+            Value::Ten => 8,
+            Value::Jack => 9,
+            Value::Queen => 10,
+            Value::King => 11,
+            Value::Ace => 12,
+        };
+        Some(index)
+        
     }
 }
 pub type CardIndex = usize;
 impl Card {
-    fn from_index(index: CardIndex) -> Self {
+    pub fn from_index(index: CardIndex) -> Self {
         let suit = match index / 13 {
             0 => Suit::Hearts,
             1 => Suit::Diamonds,
@@ -148,7 +169,7 @@ impl Card {
         };
         Card { value, suit }
     }
-    fn new(s: String) -> Self {
+    pub fn new(s: &str) -> Self {
         let mut chars = s.chars();
         let value = Value::new(chars.next().unwrap().to_string());
         let suit = Suit::new(chars.next().unwrap().to_string());
@@ -291,6 +312,7 @@ impl AuctionPokerState {
             0 => self.flop(),
             3 => self.turn(),
             4 => self.river(),
+            5 => self.showdown(),
             _ => panic!("Cannot deal to community when there are this many community cards."),
         }
     }
@@ -422,8 +444,8 @@ impl AuctionPokerState {
     }
 
     /// The game is over, determine the winner
-    fn showdown(&self, delta: f32) -> ActivePlayer<AuctionPokerAction> {
-        todo!()
+    fn showdown(&self) -> ActivePlayer<AuctionPokerAction> {
+        unimplemented!()
     }
 }
 
