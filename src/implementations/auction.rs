@@ -573,9 +573,9 @@ impl State<AuctionPokerAction> for AuctionPokerState {
                 let street = self.community_cards.len();
                 let bidding_round_over = self.bids[1].is_some();
                 self.active_player = match (street, bidding_round_over) {
-                    (0..=2, _) => self.deal(),
-                    (3, false) => self.auction(),
-                    (3, true) => self.betting_round(0),
+                    (0..=2, _) => self.deal(), // Not enough cards, deal again
+                    (3, false) => self.auction(), // Kick off bidding!
+                    (3, true) => self.betting_round(0), // Start betting rounds 
                     (4, _) => self.betting_round(0),
                     (5, _) => self.betting_round(0),
                     _ => panic!("Unsure what to do after dealing in this situation")
@@ -906,6 +906,10 @@ mod tests {
         assert_eq!(state.active_player().actions().contains(&AuctionPokerAction::Auction(Winner::Player(0))), true);
 
         state.update(AuctionPokerAction::Auction(Winner::Player(0)));
+
+        // Should be expecting to get a hole card
+        assert!(state.active_player().actions().iter().all(|x| matches!( x, AuctionPokerAction::DealHole(_,0))));
+
         state.update(AuctionPokerAction::DealHole(Card::new("2c").to_usize().unwrap(), 0));
 
         // Make sure that we have moved on to the next betting round!
@@ -917,7 +921,7 @@ mod tests {
         state.update(AuctionPokerAction::Check);
 
         // Make sure we're in the card dealing round
-        assert!(state.active_player().actions().iter().any( |x| matches!( x, AuctionPokerAction::DealCommunity(_))));
+        assert!(state.active_player().actions().iter().all( |x| matches!( x, AuctionPokerAction::DealCommunity(_))));
 
         // Turn dealt
         state.update(AuctionPokerAction::DealCommunity(Card::new("Qc").to_usize().unwrap()));
@@ -948,20 +952,16 @@ mod tests {
 
         assert!(matches!( state.active_player(), ActivePlayer::Terminal(_)));
         if let ActivePlayer::Terminal(deltas) = state.active_player() {
-            assert!((deltas[0] - 9.0) < 0.00001);
+            assert!((deltas[0] - 9.0) < 0.00001); // Player 0 should get all the prize mulah
             assert!((deltas[1] - -9.0) < 0.00001);
         }
     }
 
-    #[test]
-    fn test_sample_playthrough() {
-        // Go through while sampling chance and fixing the actions
-        // for each player
-    }
 
     #[test]
     fn test_reraise() {
         // Make sure that reraising works
+        // TODO: will need to look up min raise rules for this
     }
 
     #[test]
