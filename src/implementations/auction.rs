@@ -565,6 +565,7 @@ impl AuctionPokerState {
         let mut actions = Vec::new();
         let mut last_rounded = 0;
 
+        // See variant rules: cannot raise more than either player's stack
         let max_raise = self.stacks[player_num].min(self.stacks[player_num ^ 1]);
 
         for i in min_raise..=max_raise {
@@ -577,6 +578,9 @@ impl AuctionPokerState {
             last_rounded = rounded;
         }
 
+        // See poker rules:
+        // even if the maximum raise is lower than the minimum raise, 
+        // the player can still go all in
         let all_in = self.stacks[player_num];
         if all_in > 0
             && actions.len() == 0
@@ -592,6 +596,7 @@ impl AuctionPokerState {
             actions.push(AuctionPokerAction::Check);
         } else {
             // We can always call if the stacks are unequal
+            // (by virtue of never being able to raise more than the smaller stack)
             actions.push(AuctionPokerAction::Call);
             actions.push(AuctionPokerAction::Fold);
         }
@@ -618,9 +623,10 @@ impl AuctionPokerState {
                 } else {
                     Winner::Tie
                 };
-                // Hacky way to just force someone to take record the winner
+                // Hacky way to just force someone to record the winner
                 // by forcing it to be the only action they can take
-                ActivePlayer::Player(0, vec![AuctionPokerAction::Auction(winner)])
+                // TODO: cleanup
+                ActivePlayer::Player(2, vec![AuctionPokerAction::Auction(winner)])
             }
             _ => panic!("Invalid bids states"),
         }
@@ -650,7 +656,6 @@ impl AuctionPokerState {
         let player0_hand_len = player0.len();
         let player1_hand_len = player1.len();
 
-        // TODO: probably a bit slow to keep reloading the library
         let hand_ranker = HandRanker::new();
 
         let player1_rank = match player1_hand_len {
@@ -799,6 +804,7 @@ impl State<AuctionPokerAction> for AuctionPokerState {
                 match round {
                     Round::PreFlop => {
                         // If it's a preflop we use the special case instead
+                        // (only cards + pot)
                         let mut features0 = card_features(&self.player_hands[0].cards());
                         let mut features1 = card_features(&self.player_hands[1].cards());
                         features0.push(Feature::Pot(scaled_pot));
@@ -826,6 +832,8 @@ impl State<AuctionPokerAction> for AuctionPokerState {
             }
 
             AuctionPokerAction::BettingRoundEnd => {
+                // Sanity check
+                debug_assert!(self.pot + self.stacks[0] + self.stacks[1] == MAX_POT);
                 // TODO: I don't think there's anything to be done here but may be wrong
                 vec![Observation::Public(Information::Discard)]
             }
