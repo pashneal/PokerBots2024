@@ -290,6 +290,10 @@ pub enum AuctionPokerAction {
     Raise(u32, u32), // amount, nearest whole percent
     Bid(u32),        //  representing an auction size from one of the players
     Auction(Winner),
+    BettingRoundStart,
+    BettingRoundEnd,
+    AuctionStart,
+    PlayerActionEnd(usize),
 }
 
 impl Parsable for AuctionPokerAction {
@@ -333,7 +337,19 @@ pub struct AuctionPokerState {
 }
 
 impl AuctionPokerState {
-    fn bid_observations(&self, community_cards: &Vec<u8>) -> Vec<Observation<AuctionPokerAction>> {
+    fn current_betting_round(&self) -> Round{
+        match self.community_cards.len() {
+            0 => Round::PreFlop,
+            3 => Round::Flop,
+            4 => Round::Turn,
+            5 => Round::River,
+            _ => panic!("Not a legal betting round!")
+        }
+
+    }
+    fn pre_bid_observations(&self) -> Vec<Observation<AuctionPokerAction>> {
+
+        let community_cards : Vec<u8> = self.community_cards.iter().map(|x| x.to_usize().unwrap() as u8).collect();
         let ranker = HandRanker::new();
         let iterations = EV_ITERATIONS;
 
@@ -341,14 +357,14 @@ impl AuctionPokerState {
         // won the upcoming bid on the flop
         let hand = self.player_hands[0].cards();
         let hand: Vec<u8> = hand.iter().map(|x| x.to_usize().unwrap() as u8).collect();
-        let ev_win0 = ranker.rollout_bid_win(&hand, community_cards, iterations);
-        let ev_loss0 = ranker.rollout_bid_loss(&hand, community_cards, iterations);
+        let ev_win0 = ranker.rollout_bid_win(&hand, &community_cards, iterations);
+        let ev_loss0 = ranker.rollout_bid_loss(&hand, &community_cards, iterations);
 
         // And the same for player 1
         let hand = self.player_hands[1].cards();
         let hand: Vec<u8> = hand.iter().map(|x| x.to_usize().unwrap() as u8).collect();
-        let ev_win1 = ranker.rollout_bid_win(&hand, community_cards, iterations);
-        let ev_loss1 = ranker.rollout_bid_loss(&hand, community_cards, iterations);
+        let ev_win1 = ranker.rollout_bid_win(&hand, &community_cards, iterations);
+        let ev_loss1 = ranker.rollout_bid_loss(&hand, &community_cards, iterations);
 
         // ALWAYS truncate, it would be very bad
         // to think that we have the nuts when we don't
@@ -377,8 +393,14 @@ impl AuctionPokerState {
         ]
     }
 
-    fn round_features(&mut self, round : Round) -> Vec<Feature>{
-        let ev = self.get_player_ev(&round);
+    fn round_features(&mut self, round : &Round, player_num: usize) -> Vec<Feature>{
+
+        let round = round.clone();
+        if matches!(round, Round::PreFlop) {
+            return vec![];
+        };
+
+        let ev = self.get_player_ev(&round, player_num);
         let ev = (ev * 100.0) as u16;
         let winner = match self.winner {
             Some(Winner::Player(0)) => BidResult::Player(0),
@@ -395,8 +417,7 @@ impl AuctionPokerState {
     } 
 
     // Calculate the ev if it's the first time we've seen this round and player
-    fn get_player_ev(&mut self, round: &Round) -> f32 {
-        let player_num = self.active_player.player_num();
+    fn get_player_ev(&mut self, round: &Round, player_num: usize) -> f32 {
         // If we've already calculated the ev, return it
         let round_index: usize = round.clone().into();
         if let Some(ev) = self.cached_ev[round_index][player_num] {
@@ -507,6 +528,23 @@ impl AuctionPokerState {
         }
 
         ActivePlayer::Chance(Categorical::uniform(cards))
+    }
+
+    fn betting_round_start(&self) -> ActivePlayer<AuctionPokerAction> {
+        let start = vec![AuctionPokerAction::BettingRoundStart];
+        ActivePlayer::Player(2, start)
+    }
+    fn betting_round_end(&self) -> ActivePlayer<AuctionPokerAction> {
+        let end = vec![AuctionPokerAction::BettingRoundEnd];
+        ActivePlayer::Player(2, end)
+    }
+    fn auction_start(&self) -> ActivePlayer<AuctionPokerAction> {
+        let start = vec![AuctionPokerAction::AuctionStart];
+        ActivePlayer::Player(2, start)
+    }
+    fn action_end(&self, player_num: usize) -> ActivePlayer<AuctionPokerAction> {
+        let start = vec![AuctionPokerAction::PlayerActionEnd(player_num)];
+        ActivePlayer::Player(2, start)
     }
 
     fn betting_round(&self, player_num: usize) -> ActivePlayer<AuctionPokerAction> {
@@ -692,113 +730,95 @@ impl State<AuctionPokerAction> for AuctionPokerState {
             }
 
             AuctionPokerAction::Call => {
-                // Betting round just ended
+                // Don't really care what happens here 
+                vec![Observation::Public(Information::Discard)]
+                            
+            }
+            AuctionPokerAction::Check => {
+                // Don't really care what happens here
+                vec![Observation::Public(Information::Discard)]
+            }
+            AuctionPokerAction::DealHole(_, player_num) => {
+                // Share the private information only with the player who got the card
+                let observation = Observation::Shared(Information::Action(action.clone()), vec![*player_num]);
+                vec![observation]
+            }
+            AuctionPokerAction::DealCommunity(_) => {
+                vec![Observation::Public(Information::Action(action.clone()))]
+            }
+            AuctionPokerAction::Raise(_, _) => {
+                // Don't really care what happens here
+                vec![Observation::Public(Information::Discard)]
+            }
+            AuctionPokerAction::Bid(_) => {
+                // Don't really care what happens here
+                vec![Observation::Public(Information::Discard)]
+            }
+            AuctionPokerAction::Auction(_) => {
+                vec![Observation::Private(Information::Action(action.clone()))]
+            }
 
-                let round = match self.community_cards.len() {
-                    0 => Round::PreFlop,
-                    3 => Round::Flop,
-                    4 => Round::Turn,
-                    5 => Round::River,
-                    _ => panic!("Invalid community card length"),
-                }; 
+            //////////////////////////////
+            // These update the feature set!
+            //////////////////////////////
 
-                let max_pip = self.pips.iter().max().unwrap();
+            AuctionPokerAction::BettingRoundStart | AuctionPokerAction::PlayerActionEnd(_) => {
+                // TODO: slight optimization with only updating the specific player under
+                // PlayerActionEnd
 
-                // Take the pip diff and subtract from both players
-                let new_stacks = [
-                    self.stacks[0] - (max_pip - self.pips[0]),
-                    self.stacks[1] - (max_pip - self.pips[1]),
-                ];
-                let new_pot = self.new_pot_after(&AuctionPokerAction::Call);
-                let scaled_pot = (new_pot as f32 / MAX_POT as f32) * 200.0;
+                let pot = self.pot;
+                let pot = pot as f32 / MAX_POT as f32;
+                let scaled_pot = (pot * 200.0) as u8;
+                let stacks = [self.stacks[0] as f32/ STACK_SIZE as f32, self.stacks[1] as f32/ STACK_SIZE as f32];
+                let scaled_stacks = [(stacks[0] * 50.0) as u8, (stacks[1] * 50.0) as u8];
 
-                let scaled_stacks = [
-                    (new_stacks[0] as f32 / STACK_SIZE as f32  * 50.0) as u8,
-                    (new_stacks[1] as f32 / STACK_SIZE as f32  * 50.0) as u8,
-                ];
-                    
-
-                let stack_pots = vec![
-                    Feature::Pot(scaled_pot as u8),
+                let pot_and_stacks = [
+                    Feature::Pot(scaled_pot),
                     Feature::Stack(scaled_stacks[0]),
                     Feature::Stack(scaled_stacks[1]),
                 ];
 
 
-                let features = match round {
-                    Round::PreFlop => { vec![] } // Don't care
-                    Round::Flop => { self.round_features(Round::Flop).into_iter().chain(stack_pots).collect() }
-                    Round::Turn => { self.round_features(Round::Turn).into_iter().chain(stack_pots).collect() }
-                    Round::River => { self.round_features(Round::River).into_iter().chain(stack_pots).collect() }
-                    _ => panic!("Don't know what features to find to in this round")
-                };
+                let round =  self.current_betting_round();
+                let mut features0 = self.round_features(&round, 0);
+                let mut features1 = self.round_features(&round, 1);
 
-                vec![Observation::Private(Information::Features(features))]
-                
-            }
-            AuctionPokerAction::Check => {
-                // Also doesn't matter what happens here (no changes in abstraction)
-                vec![Observation::Public(Information::Discard)]
-            }
-            AuctionPokerAction::DealHole(new_card, player_num) => {
-                // Share the private information only with the player who got the card
-                Observation::Shared(Information::Action(action.clone()), vec![*player_num]);
+                features0.extend(pot_and_stacks.clone());
+                features1.extend(pot_and_stacks);
 
-                let mut cards = self.player_hands[*player_num].cards();
-                let new_card = Card::from_index(*new_card);
-                cards.push(new_card);
+                let features1 = Information::Features(features1);
+                let features0 = Information::Features(features0);
 
-                let observation = match cards.len() {
-                    0..=1 => Observation::Private(Information::Discard),
-                    2 => Observation::Private(Information::Features(card_features(&cards))),
-                    3 => todo!(),
-                    _ => panic!("Invalid hand length"),
-                };
-                vec![observation]
-            }
-            AuctionPokerAction::DealCommunity(new_card) => {
-                Observation::Public(Information::Action(action.clone()));
+                match round {
+                    Round::PreFlop => {
+                        // If it's a preflop we use the special case instead
+                        let mut features0 = card_features(&self.player_hands[0].cards());
+                        let mut features1 = card_features(&self.player_hands[1].cards());
+                        features0.push(Feature::Pot(scaled_pot));
+                        features1.push(Feature::Pot(scaled_pot));
 
-                let cards = self.community_cards.clone();
-                let mut cards: Vec<u8> =
-                    cards.iter().map(|x| x.to_usize().unwrap() as u8).collect();
-                cards.push(*new_card as u8);
+                        let features0 = Information::Features(features0);
+                        let features1 = Information::Features(features1);
 
-                match cards.len() {
-                    0..=2 => vec![Observation::Public(Information::Discard)],
-                    3 => self.bid_observations(&cards),
-                    _ => panic!("Unsure what do do here"),
+                        vec![ 
+                            Observation::Shared(features0, vec![0]), 
+                            Observation::Shared(features1, vec![1])
+                        ]
+                    },
+                    Round::Turn | Round::River | Round::Flop => {
+                        vec![
+                            Observation::Shared(features0, vec![0]),
+                            Observation::Shared(features1, vec![1]),
+                        ]
+                    }
+                    _ => panic!("Cannot start betting during this round!")
                 }
+            },
+            AuctionPokerAction::AuctionStart => {
+                self.pre_bid_observations()
             }
-            AuctionPokerAction::Raise(raise, _) => {
-                Observation::Public(Information::Action(action.clone()));
-                let player_num = self.active_player().player_num();
 
-                let cards = self.player_hands[player_num].cards();
-                let mut preflop_features = card_features(&cards);
-                let pot = self.new_pot_after(&action);
-
-                let max_pot = STACK_SIZE * 2;
-                let pot_percentage = pot as f32 / max_pot as f32;
-                let pot_percentage = pot_percentage * 100.0;
-                let pot_percentage = pot_percentage as u8;
-                preflop_features.push(Feature::Pot(pot_percentage));
-
-                let observations = match self.community_cards.len() {
-                    0 => Observation::Private(Information::Features(preflop_features)),
-                    3 => todo!(),
-                    4 => todo!(),
-                    5 => todo!(),
-                    _ => panic!("Invalid community_cards length"),
-                };
-                vec![observations]
-            }
-            AuctionPokerAction::Bid(_) => {
-                vec![Observation::Private(Information::Action(action.clone()))]
-            }
-            AuctionPokerAction::Auction(_) => {
-                vec![Observation::Public(Information::Action(action.clone()))]
-            }
+            _=> todo!()
         }
     }
 
@@ -916,7 +936,8 @@ impl State<AuctionPokerAction> for AuctionPokerState {
                 // Always needs to deal hole cards after an auction
                 debug_assert_eq!(self.stacks[0] + self.stacks[1] + self.pot, 2 * STACK_SIZE);
                 self.active_player = self.hole_card_dealer();
-            }
+            },
+            _ => todo!()
         }
     }
 }
