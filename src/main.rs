@@ -22,6 +22,4 @@ pub fn main() -> () {
     // strategies are imperfect and we need 
     // a why to get the best response
     //
-
-    // TODO: ev not working for river for some reason??
 }
