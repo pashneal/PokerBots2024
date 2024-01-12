@@ -96,6 +96,11 @@ impl<A: Action, S: State<A>> MCCFR<A, S> {
                 self.game.play(action);
                 self.run_averaging_iteration(rng, updated_player, depth + 1, q)
             }
+            ActivePlayer::Marker(action) => {
+                self.game.play(action);
+                self.run_averaging_iteration(rng, updated_player, depth + 1, q)
+            }
+
             ActivePlayer::Player(player_num, actions) => {
                 let actions = self.game_mapper.map_actions(&actions, depth);
                 let player_num = player_num as usize;
@@ -129,6 +134,7 @@ impl<A: Action, S: State<A>> MCCFR<A, S> {
                 let policy = strategy.policy(&history).expect("Could not get policy");
                 let sampling_values =
                     average_sampling(&policy, self.exploration, self.bonus, self.threshold);
+
 
                 let mut regret_updates: Vec<f32> = vec![];
 

@@ -11,6 +11,8 @@ pub enum ActivePlayer<A: Action> {
                          // at this node. Do not be confused, this Vec<Utility> is used to
                          // calculate a single utility value for each player, and does not
                          // represent a choice of utilities
+    Marker(A)             // A node that just takes a single action, and updates the game 
+                         // history and state accordingly
 }
 
 impl<A: Action> ActivePlayer<A> {
@@ -20,6 +22,7 @@ impl<A: Action> ActivePlayer<A> {
             ActivePlayer::Terminal(_) => &[],
             ActivePlayer::Player(_, ref actions) => actions,
             ActivePlayer::Chance(ref dist) => dist.items(),
+            ActivePlayer::Marker(ref action) => std::slice::from_ref(action),
         }
     }
 
@@ -29,6 +32,7 @@ impl<A: Action> ActivePlayer<A> {
             ActivePlayer::Terminal(_) => None,
             ActivePlayer::Player(p, _) => Some(*p as usize),
             ActivePlayer::Chance(_) => None,
+            ActivePlayer::Marker(_) => None,
         }
     }
 
@@ -37,6 +41,7 @@ impl<A: Action> ActivePlayer<A> {
             ActivePlayer::Terminal(_) => panic!("Terminal node has no player number"),
             ActivePlayer::Player(p, _) => *p as usize,
             ActivePlayer::Chance(_) => panic!("Chance node has no player number"),
+            ActivePlayer::Marker(_) => panic!("Dummy node has no player number"),
         }
     }
 }

@@ -6,6 +6,7 @@ use crate::game_logic::state::{ActivePlayer, State};
 use crate::game_logic::visibility::*;
 use rand::prelude::*;
 use std::cmp::Ordering;
+use std::time::{Duration, Instant};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Suit {
@@ -314,7 +315,20 @@ impl Parsable for AuctionPokerAction {
 
 impl Into<ActionIndex> for AuctionPokerAction {
     fn into(self) -> ActionIndex {
-        todo!();
+        match self {
+            AuctionPokerAction::Fold => 0,
+            AuctionPokerAction::Call => 1,
+            AuctionPokerAction::Check => 2,
+            AuctionPokerAction::DealHole(_, _) => 3,
+            AuctionPokerAction::DealCommunity(_) => 4,
+            AuctionPokerAction::Raise(_, _) => 5,
+            AuctionPokerAction::Bid(_) => 6,
+            AuctionPokerAction::BettingRoundStart => 7,
+            AuctionPokerAction::BettingRoundEnd => 8,
+            AuctionPokerAction::AuctionStart => 9,
+            AuctionPokerAction::PlayerActionEnd(_) => 10,
+            AuctionPokerAction::Auction(_) => 11,
+        }
     }
 }
 
@@ -407,7 +421,10 @@ impl AuctionPokerState {
             return vec![];
         };
 
+        let time = Instant::now();
         let ev = self.get_player_ev(&round, player_num);
+        println!("EV time: {:?}", time.elapsed());
+
         let ev = (ev * 100.0) as u16;
         let winner = match self.winner {
             Some(Winner::Player(0)) => BidResult::Player(0),
@@ -435,6 +452,9 @@ impl AuctionPokerState {
         let iterations = EV_ITERATIONS;
 
         let hand = self.player_hands[player_num].cards();
+        println!("Hand: {:?}", hand);
+        println!("Community: {:?}", self.community_cards);
+
         let hand: Vec<u8> = hand.iter().map(|x| x.to_usize().unwrap() as u8).collect();
         let community_cards: Vec<u8> = self
             .community_cards
@@ -442,7 +462,8 @@ impl AuctionPokerState {
             .map(|x| x.to_usize().unwrap() as u8)
             .collect();
 
-        // Note: The reason we divide by 10 on the river is
+        const REDUCE: u32 = 2;
+        // Note: The reason we divide by REDUCE on the river is
         // because accuracy can be sacrificed for speed
         // (fewer card possibilities to sample from)
         let ev = match self.winner {
@@ -451,7 +472,7 @@ impl AuctionPokerState {
                     Round::Flop => ranker.rollout_flop_won(&hand, &community_cards, iterations),
                     Round::Turn => ranker.rollout_turn_won(&hand, &community_cards, iterations),
                     Round::River => {
-                        ranker.rollout_river_won(&hand, &community_cards, iterations / 10)
+                        ranker.rollout_river_won(&hand, &community_cards, iterations / REDUCE)
                     }
                     _ => panic!("Cannot evaluate ev on this round"),
                 };
@@ -462,7 +483,7 @@ impl AuctionPokerState {
                     Round::Flop => ranker.rollout_flop_lost(&hand, &community_cards, iterations),
                     Round::Turn => ranker.rollout_turn_lost(&hand, &community_cards, iterations),
                     Round::River => {
-                        ranker.rollout_river_lost(&hand, &community_cards, iterations / 10)
+                        ranker.rollout_river_lost(&hand, &community_cards, iterations / REDUCE)
                     }
                     _ => panic!("Cannot evaluate ev on this round"),
                 };
@@ -473,7 +494,7 @@ impl AuctionPokerState {
                     Round::Flop => ranker.rollout_flop_tie(&hand, &community_cards, iterations),
                     Round::Turn => ranker.rollout_turn_tie(&hand, &community_cards, iterations),
                     Round::River => {
-                        ranker.rollout_river_tie(&hand, &community_cards, iterations / 10)
+                        ranker.rollout_river_tie(&hand, &community_cards, iterations / REDUCE)
                     }
                     _ => panic!("Cannot evaluate ev on this round"),
                 };
@@ -538,20 +559,20 @@ impl AuctionPokerState {
     }
 
     fn betting_round_start(&self) -> ActivePlayer<AuctionPokerAction> {
-        let start = vec![AuctionPokerAction::BettingRoundStart];
-        ActivePlayer::Player(2, start)
+        let start = AuctionPokerAction::BettingRoundStart;
+        ActivePlayer::Marker(start)
     }
     fn betting_round_end(&self) -> ActivePlayer<AuctionPokerAction> {
-        let end = vec![AuctionPokerAction::BettingRoundEnd];
-        ActivePlayer::Player(2, end)
+        let end = AuctionPokerAction::BettingRoundEnd;
+        ActivePlayer::Marker(end)
     }
     fn auction_start(&self) -> ActivePlayer<AuctionPokerAction> {
-        let start = vec![AuctionPokerAction::AuctionStart];
-        ActivePlayer::Player(2, start)
+        let start = AuctionPokerAction::AuctionStart;
+        ActivePlayer::Marker(start)
     }
     fn action_end(&self, player_num: usize) -> ActivePlayer<AuctionPokerAction> {
-        let start = vec![AuctionPokerAction::PlayerActionEnd(player_num)];
-        ActivePlayer::Player(2, start)
+        let start = AuctionPokerAction::PlayerActionEnd(player_num);
+        ActivePlayer::Marker(start)
     }
 
     fn betting_round(&self, player_num: usize) -> ActivePlayer<AuctionPokerAction> {
@@ -559,7 +580,7 @@ impl AuctionPokerState {
         // this represents the total amount of money needed
         let min_raise = match self.raise {
             Some(raise) => raise + self.pips[player_num ^ 1],
-            None => BIG_BLIND,
+            None => BIG_BLIND + self.pips[player_num ^ 1],
         };
 
         let mut actions = Vec::new();
@@ -623,10 +644,7 @@ impl AuctionPokerState {
                 } else {
                     Winner::Tie
                 };
-                // Hacky way to just force someone to record the winner
-                // by forcing it to be the only action they can take
-                // TODO: cleanup
-                ActivePlayer::Player(2, vec![AuctionPokerAction::Auction(winner)])
+                ActivePlayer::Marker(AuctionPokerAction::Auction(winner))
             }
             _ => panic!("Invalid bids states"),
         }
@@ -868,8 +886,6 @@ impl State<AuctionPokerAction> for AuctionPokerState {
                 self.active_player = self.betting_round_end();
             }
             AuctionPokerAction::Check => {
-                // No change in any of the players stacks, move on
-
                 let player_num = self.active_player.player_num() as usize;
                 match player_num {
                     0 => self.active_player = self.action_end(0),
@@ -913,15 +929,26 @@ impl State<AuctionPokerAction> for AuctionPokerState {
                 self.pips[player_num] += cost;
                 self.stacks[player_num] -= cost;
 
+                println!("Betting round is {:?}", self.current_betting_round());
+                println!("Player {} raises to {}", player_num, amount);
+                println!("Player {} has {} chips left", player_num, self.stacks[player_num]);
+                println!("Player {} has {} chips left", player_num ^ 1, self.stacks[player_num ^ 1]);
+                println!("Pot is {}", self.pot);
+                println!("Pips are {:?}", self.pips);
+                println!("Raise is {:?}", self.raise);
+                println!("Bid is {:?}", self.bids);
+                println!();
+
                 // Opponent bet something - so this is a raise
                 if self.pips[player_num ^ 1] > 0 {
                     // assert greater than opponent's bet
                     debug_assert_eq!(amount > self.pips[player_num ^ 1], true);
+                    let cost = amount - self.pips[player_num ^ 1];
                     if self.raise.is_some() {
                         // assert greater than min raise
-                        debug_assert_eq!(amount >= self.raise.unwrap(), true);
+                        debug_assert_eq!(cost >= self.raise.unwrap(), true);
                     }
-                    self.raise = Some(amount - self.pips[player_num ^ 1]);
+                    self.raise = Some(cost);
                 } else {
                     self.raise = None;
                 }
@@ -953,6 +980,7 @@ impl State<AuctionPokerAction> for AuctionPokerState {
                         self.player_hands[1].expand();
                     }
                 }
+                self.winner = Some(winner.clone());
                 self.pot = self.new_pot_after(&AuctionPokerAction::Auction(winner));
 
                 // Sanity check pot amounts
@@ -977,6 +1005,8 @@ impl State<AuctionPokerAction> for AuctionPokerState {
                 // We always need the dealer to do stuff
                 // (deal community cards, deal hole cards, etc.)
                 // when the betting rounds end
+                self.raise = None;
+                self.pips = [0,0];
                 self.active_player = self.next_dealer()
             }
 
@@ -1491,13 +1521,14 @@ mod tests {
     fn test_all_in() {
         // Make sure that all-in works especially when there are asymmetric
         // contributions to the stack
-        // TODO
+        // TODO : definitely need to test this
     }
 
     #[test]
-    fn test_reraise() {
+    fn test_min_raise() {
         // Make sure that reraising works
         // TODO: will need to look up min raise rules for this
+        // TODO: especially because something seemed to have crashed whithin the Raise node 
     }
 
     #[test]

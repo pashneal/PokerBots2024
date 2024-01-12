@@ -160,7 +160,7 @@ impl HandRanker {
 
     pub fn rollout_turn_lost(&self, hand: &[u8], community_cards: &[u8], iterations: u32) -> f64 {
         unsafe {
-            let func: Symbol<unsafe extern "C" fn(u8, u8, u8, u8, u8, u32) -> f64> =
+            let func: Symbol<unsafe extern "C" fn(u8, u8, u8, u8, u8, u8, u32) -> f64> =
                 self.library.get(b"rollout_turn_lost").unwrap();
             func(
                 hand[0],
@@ -168,6 +168,7 @@ impl HandRanker {
                 community_cards[0],
                 community_cards[1],
                 community_cards[2],
+                community_cards[3],
                 iterations,
             )
         }
@@ -214,7 +215,7 @@ impl HandRanker {
                 self.library.get(b"rollout_river_lost").unwrap();
             func(
                 hand[0],
-                hand[2],
+                hand[1],
                 community_cards[0],
                 community_cards[1],
                 community_cards[2],

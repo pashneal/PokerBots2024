@@ -8,7 +8,7 @@ use std::{fmt::Debug, hash::Hash};
 pub struct History(pub Vec<ActionIndex>);
 
 // TODO:  deal with greater than just 8 actions
-pub static MAX_ACTIONS: CondensedInfoSet = 8;
+pub static MAX_ACTIONS: CondensedInfoSet = 200;
 impl History {
     pub fn into_condensed(self) -> CondensedInfoSet {
         let mut condensed = 0;

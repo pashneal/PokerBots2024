@@ -196,6 +196,7 @@ impl State<GoofspielAction> for GoofspielState {
             ActivePlayer::Terminal(_) => panic!("Terminal state has no visibility"),
             ActivePlayer::Player(_, _) => Observation::Private(Information::Action(action.clone())),
             ActivePlayer::Chance(_) => Observation::Public(Information::Action(action.clone())),
+            _ => panic!("Unsure how to handle this player"),
         };
 
         vec![observation]
@@ -206,6 +207,7 @@ impl State<GoofspielAction> for GoofspielState {
             ActivePlayer::Terminal(_) => panic!("Terminal state cannot be updated"),
             ActivePlayer::Player(_, _) => self.player_update(action),
             ActivePlayer::Chance(_) => self.chance_update(action),
+            _ => panic!("Unsure how to handle this player"),
         }
     }
 }

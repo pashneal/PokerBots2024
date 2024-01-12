@@ -38,6 +38,7 @@ where
     pub fn play(&mut self, action: A) {
         let active_player = self.state.active_player();
         let observations = self.state.get_observations(&action);
+        println!("Observations: {:?}", observations);
         self.observation_tracker
             .observe_all(observations, active_player.as_index());
         self.state.update(action);
