@@ -62,6 +62,18 @@ pub enum Round {
     River,
 }
 
+impl Into<usize> for Round {
+    fn into(self) -> usize {
+        match self {
+            Round::PreFlop => 0,
+            Round::Auction => 1,
+            Round::Flop => 2,
+            Round::Turn => 3,
+            Round::River => 4,
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub enum BidResult {
     Player(u8),
@@ -76,6 +88,7 @@ pub enum Feature {
     Pot(u8),             // Pot size as a percentage of a stack (0-200)
     Order(Round),
     Auction(BidResult),
+    Stack(u8)              // Stack as percentage of max scaled down (0-50)
 }
 
 impl Into<ActionIndex> for Feature {
@@ -85,17 +98,15 @@ impl Into<ActionIndex> for Feature {
             Feature::Ranks(x, y) => x as ActionIndex * 13 + y as ActionIndex,
             Feature::EV(x) => x as ActionIndex,
             Feature::Pot(x) => x as ActionIndex,
-            Feature::Order(round) => match round {
-                Round::PreFlop => 0,
-                Round::Auction => 1,
-                Round::Flop => 2,
-                Round::Turn => 3,
-                Round::River => 4,
-            },
+            Feature::Order(round) => {
+                let round_index: usize = round.into();
+                round_index as ActionIndex
+            }
             Feature::Auction(result) => match result {
                 BidResult::Player(player) => player as ActionIndex,
                 BidResult::Tie => 2,
             },
+            Feature::Stack(x) => x as ActionIndex,
         }
     }
 }

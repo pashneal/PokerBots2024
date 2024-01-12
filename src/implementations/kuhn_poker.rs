@@ -103,7 +103,7 @@ impl State<KuhnPokerAction> for KuhnPokerState {
         }
     }
 
-    fn get_observations(&self, action: &KuhnPokerAction) -> Vec<Observation<KuhnPokerAction>> {
+    fn get_observations(&mut self, action: &KuhnPokerAction) -> Vec<Observation<KuhnPokerAction>> {
         let observation = match action {
             KuhnPokerAction::Fold => {
                 Observation::Public(Information::Action(KuhnPokerAction::Fold))

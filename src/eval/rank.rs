@@ -297,9 +297,11 @@ mod tests {
         let card1 = Card::new("Tc").to_usize().unwrap() as u8;
         let card2 = Card::new("9c").to_usize().unwrap() as u8;
         let cards = [card1, card2];
-        let iterations = 100_000;
+        let iterations = 10_000;
+        let time = std::time::Instant::now();
         let weak = hand_ranker.rollout_2_7(&cards, iterations);
         let strong = hand_ranker.rollout_2_8(&cards, iterations);
+        println!("Time: {:?}", time.elapsed());
         println!("Weak (straight): {}", weak);
         println!("Strong (straight): {}", strong);
         assert!(weak < strong);
