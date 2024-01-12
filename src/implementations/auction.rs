@@ -593,7 +593,7 @@ impl AuctionPokerState {
         ActivePlayer::Player(player_num as u32, actions)
     }
 
-    fn auction(&self) -> ActivePlayer<AuctionPokerAction> {
+    fn auction_continue(&self) -> ActivePlayer<AuctionPokerAction> {
         let player0_bids = (0..=self.stacks[0])
             .map(|x| AuctionPokerAction::Bid(x))
             .collect::<Vec<_>>();
@@ -819,7 +819,11 @@ impl State<AuctionPokerAction> for AuctionPokerState {
                 self.pre_bid_observations()
             }
 
-            _=> todo!()
+            AuctionPokerAction::BettingRoundEnd => {
+                // TODO: I don't think there's anything to be done here but may be wrong
+                vec![Observation::Public(Information::Discard)]
+            }
+
         }
     }
 
@@ -847,15 +851,15 @@ impl State<AuctionPokerAction> for AuctionPokerState {
                 self.raise = None;
 
                 debug_assert_eq!(self.stacks[0] + self.stacks[1] + self.pot, 2 * STACK_SIZE);
-                self.active_player = self.next_dealer();
+                self.active_player = self.betting_round_end();
             }
             AuctionPokerAction::Check => {
                 // No change in any of the players stacks, move on
 
                 let player_num = self.active_player.player_num() as usize;
                 match player_num {
-                    0 => self.active_player = self.betting_round(1),
-                    1 => self.active_player = self.next_dealer(),
+                    0 => self.active_player = self.action_end(0), 
+                    1 => self.active_player = self.betting_round_end(),
                     _ => panic!("Invalid player number"),
                 }
                 debug_assert_eq!(self.stacks[0] + self.stacks[1] + self.pot, 2 * STACK_SIZE);
@@ -868,7 +872,7 @@ impl State<AuctionPokerAction> for AuctionPokerState {
                     self.active_player = self.hole_card_dealer();
                 } else {
                     // Start off the next round of betting!
-                    self.active_player = self.betting_round(0);
+                    self.active_player = self.betting_round_start();
                 }
             }
 
@@ -879,10 +883,10 @@ impl State<AuctionPokerAction> for AuctionPokerState {
                 let bidding_round_over = self.bids[1].is_some();
                 self.active_player = match (street, bidding_round_over) {
                     (0..=2, _) => self.deal(),          // Not enough cards, deal again
-                    (3, false) => self.auction(),       // Kick off bidding!
-                    (3, true) => self.betting_round(0), // Start betting rounds
-                    (4, _) => self.betting_round(0),
-                    (5, _) => self.betting_round(0),
+                    (3, false) => self.auction_start(),       // Kick off bidding!
+                    (3, true) => self.betting_round_start(), // Start betting rounds
+                    (4, _) => self.betting_round_start(),
+                    (5, _) => self.betting_round_start(),
                     _ => panic!("Unsure what to do after dealing in this situation"),
                 }
             }
@@ -909,14 +913,15 @@ impl State<AuctionPokerAction> for AuctionPokerState {
                 }
 
                 debug_assert_eq!(self.stacks[0] + self.stacks[1] + self.pot, 2 * STACK_SIZE);
-                // Pass the action to the other player
-                self.active_player = self.betting_round(player_num ^ 1);
+
+                // End the action, but not the round 
+                self.active_player = self.action_end(player_num);
             }
 
             AuctionPokerAction::Bid(usize) => {
                 let player_num = self.active_player().player_num();
                 self.bids[player_num] = Some(usize);
-                self.active_player = self.auction();
+                self.active_player = self.auction_continue();
             }
 
             AuctionPokerAction::Auction(winner) => {
@@ -938,7 +943,32 @@ impl State<AuctionPokerAction> for AuctionPokerState {
                 debug_assert_eq!(self.stacks[0] + self.stacks[1] + self.pot, 2 * STACK_SIZE);
                 self.active_player = self.hole_card_dealer();
             },
-            _ => todo!()
+
+            AuctionPokerAction::BettingRoundStart => {
+                // Always kick off the betting round with player 0!
+                self.active_player = self.betting_round(0);
+            }
+            AuctionPokerAction::PlayerActionEnd(player_num) => {
+                // Always transition the the other player,
+                // if the betting round was over, then BettingRoundEnd will handle it
+                // instead
+                self.active_player = self.betting_round(player_num ^ 1);
+            }
+
+            AuctionPokerAction::BettingRoundEnd => {
+                // We always need the dealer to do stuff 
+                // (deal community cards, deal hole cards, etc.)
+                // when the betting rounds end
+                self.active_player = self.next_dealer()
+            }
+
+            AuctionPokerAction::AuctionStart => {
+                // This is just a formality so that
+                // observations and features at the auction start can be made
+                // independently
+                self.active_player = self.auction_continue();
+            }
+
         }
     }
 }
@@ -1018,7 +1048,6 @@ mod tests {
         }
 
         state.update(AuctionPokerAction::Fold);
-        state.update(AuctionPokerAction::PlayerActionEnd(0));
         // Should be terminal state with player 1 winning LB
         let active_player = state.active_player();
         match active_player {
@@ -1101,7 +1130,8 @@ mod tests {
                 assert_eq!(actions.contains(&AuctionPokerAction::Fold), false);
                 assert_eq!(actions.contains(&AuctionPokerAction::Call), false);
                 assert_eq!(actions.contains(&AuctionPokerAction::Check), false);
-                for i in 0..=396 {
+                for i in 0..=350 {
+                    // Should have 350 in stack after reraise and call
                     assert_eq!(
                         i <= state.stacks[0],
                         true,
@@ -1117,9 +1147,9 @@ mod tests {
                     );
                 }
                 assert_eq!(
-                    actions.contains(&AuctionPokerAction::Bid(397)),
+                    actions.contains(&AuctionPokerAction::Bid(351)),
                     false,
-                    "Expected bid 397 to be unavailable"
+                    "Expected bid 351 onwards to be unavailable"
                 );
             }
             x => panic!("Expected player transition. Got {:?}", x),
@@ -1132,7 +1162,8 @@ mod tests {
                 assert_eq!(actions.contains(&AuctionPokerAction::Fold), false);
                 assert_eq!(actions.contains(&AuctionPokerAction::Call), false);
                 assert_eq!(actions.contains(&AuctionPokerAction::Check), false);
-                for i in 0..=396 {
+                for i in 0..=350 {
+                    // glass box testing
                     assert_eq!(
                         i <= state.stacks[1],
                         true,
@@ -1148,9 +1179,9 @@ mod tests {
                     );
                 }
                 assert_eq!(
-                    actions.contains(&AuctionPokerAction::Bid(397)),
+                    actions.contains(&AuctionPokerAction::Bid(351)),
                     false,
-                    "Expected bid 397 to be unavailable"
+                    "Expected bid 351 to be unavailable"
                 );
             }
 
