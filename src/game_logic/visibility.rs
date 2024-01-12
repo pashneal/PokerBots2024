@@ -88,7 +88,7 @@ pub enum Feature {
     Pot(u8),             // Pot size as a percentage of a stack (0-200)
     Order(Round),
     Auction(BidResult),
-    Stack(u8)              // Stack as percentage of max scaled down (0-50)
+    Stack(u8), // Stack as percentage of max scaled down (0-50)
 }
 
 impl Into<ActionIndex> for Feature {
