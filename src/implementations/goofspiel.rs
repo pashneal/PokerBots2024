@@ -191,12 +191,14 @@ impl State<GoofspielAction> for GoofspielState {
         self.active.clone()
     }
 
-    fn get_observation(&self, action: &GoofspielAction) -> Observation<GoofspielAction> {
-        match self.active_player() {
+    fn get_observations(&self, action: &GoofspielAction) -> Vec<Observation<GoofspielAction>> {
+        let observation = match self.active_player() {
             ActivePlayer::Terminal(_) => panic!("Terminal state has no visibility"),
             ActivePlayer::Player(_, _) => Observation::Private(Information::Action(action.clone())),
             ActivePlayer::Chance(_) => Observation::Public(Information::Action(action.clone())),
-        }
+        };
+
+        vec![observation]
     }
 
     fn update(&mut self, action: GoofspielAction) {

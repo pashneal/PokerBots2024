@@ -35,6 +35,7 @@ impl From<CondensedInfoSet> for History {
 #[derive(Clone, Debug)]
 pub struct ObservationTracker {
     player_info_sets: Vec<Vec<ActionIndex>>,
+    player_feature_sets : Vec<Option<Vec<Feature>>>, 
 }
 
 /// Observable features of a typical poker game
@@ -51,17 +52,61 @@ pub struct ObservationTracker {
 ///       (very simple to start off with)
 ///     - it does require us to have a blazingly fast evaluator hehehehehhehe
 ///       (which we don't yet but I'd much rather work on that instead of this)
+
+
+#[derive(Clone, Debug)]
+pub enum Round {
+    PreFlop,
+    Auction,
+    Flop,
+    Turn,
+    River,
+}
+
+
+#[derive(Clone, Debug)]
+pub enum BidResult {
+    Player(u8),
+    Tie,
+}
+
 #[derive(Clone, Debug)]
 pub enum Feature {
     Suited(bool),  // True if the hand is suited
-    Ranks(u8, u8), // Sorted from highest to lowest
-    EV(u8),        // Expected value of the hand as a percentage (0-100)
+    Ranks(usize, usize), // Sorted from highest to lowest
+    EV(u16),        // Expected value of the hand as a percentage (0-100)
+    Pot(u8),       // Pot size as a percentage of a stack (0-200)
+    Order(Round),
+    Auction(BidResult),
+}
+
+impl Into<ActionIndex> for Feature {
+    fn into(self) -> ActionIndex {
+        match self {
+            Feature::Suited(x) => x as ActionIndex,
+            Feature::Ranks(x, y) => x as ActionIndex * 13 + y as ActionIndex,
+            Feature::EV(x) => x as ActionIndex,
+            Feature::Pot(x) => x as ActionIndex,
+            Feature::Order(round) => match round {
+                Round::PreFlop => 0,
+                Round::Auction => 1,
+                Round::Flop => 2,
+                Round::Turn => 3,
+                Round::River => 4,
+            }
+            Feature::Auction(result) => match result {
+                BidResult::Player(player) => player as ActionIndex,
+                BidResult::Tie => 2,
+            }
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
 pub enum Information<A> {
     Action(A),
     Features(Vec<Feature>),
+    Discard,
 }
 
 /// Represents the visibility of a given action to
@@ -77,11 +122,23 @@ impl ObservationTracker {
     pub fn new() -> Self {
         ObservationTracker {
             player_info_sets: vec![Vec::new(); NUM_REGULAR_PLAYERS],
+            player_feature_sets: vec![None; NUM_REGULAR_PLAYERS],
         }
     }
 
     pub fn get_history(&self, player: usize) -> History {
-        History(self.player_info_sets[player].clone())
+        if let Some(history) = &self.player_feature_sets[player] { 
+            let action_indices = history.iter().map(|action| action.clone().into()).collect();
+            History(action_indices)
+        } else {
+            History(self.player_info_sets[player].clone())
+        }
+    }
+
+    pub fn observe_all<A: Action>(&mut self, observations: Vec<Observation<A>>, active_player_index: Option<usize>){
+        for observation in observations {
+            self.observe(observation, active_player_index);
+        }
     }
 
     pub fn observe<A: Action>(
@@ -95,24 +152,41 @@ impl ObservationTracker {
                     for player in 0..NUM_REGULAR_PLAYERS {
                         self.player_info_sets[player].push(action.clone().into());
                     }
-                }
-                _ => panic!("Unable to observe non-action information yet"),
+                },
+                Information::Features(features) => {
+                    for player in 0..NUM_REGULAR_PLAYERS {
+                        self.player_feature_sets[player] = Some(features.clone());
+                    }
+                },
+                _ => {}
             },
+
             Observation::Private(info) => match info {
                 Information::Action(action) => {
                     if let Some(player_index) = active_player_index {
                         self.player_info_sets[player_index].push(action.clone().into());
                     }
-                }
-                _ => panic!("Unable to observe non-action information yet"),
+                },
+                Information::Features(features) => {
+                    if let Some(player_index) = active_player_index {
+                        self.player_feature_sets[player_index] = Some(features.clone());
+                    }
+                },
+                _ => {}
             },
+
             Observation::Shared(info, players) => match info {
                 Information::Action(action) => {
                     for player in players {
                         self.player_info_sets[player].push(action.clone().into());
                     }
-                }
-                _ => panic!("Unable to observe non-action information yet"),
+                },
+                Information::Features(features) => {
+                    for player in players {
+                        self.player_feature_sets[player] = Some(features.clone());
+                    }
+                },
+                _ => {}
             },
         }
     }

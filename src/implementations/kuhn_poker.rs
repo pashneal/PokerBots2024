@@ -103,8 +103,8 @@ impl State<KuhnPokerAction> for KuhnPokerState {
         }
     }
 
-    fn get_observation(&self, action: &KuhnPokerAction) -> Observation<KuhnPokerAction> {
-        match action {
+    fn get_observations(&self, action: &KuhnPokerAction) -> Vec<Observation<KuhnPokerAction>> {
+        let observation = match action {
             KuhnPokerAction::Fold => {
                 Observation::Public(Information::Action(KuhnPokerAction::Fold))
             }
@@ -124,7 +124,8 @@ impl State<KuhnPokerAction> for KuhnPokerState {
                 _ => panic!("This is not a valid state!"),
             },
             KuhnPokerAction::Bet => Observation::Public(Information::Action(KuhnPokerAction::Bet)),
-        }
+        };
+        vec![observation]
     }
 
     fn active_player(&self) -> ActivePlayer<KuhnPokerAction> {

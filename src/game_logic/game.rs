@@ -37,9 +37,9 @@ where
     /// Advance the game by a single Action
     pub fn play(&mut self, action: A) {
         let active_player = self.state.active_player();
-        let visibility = self.state.get_observation(&action);
+        let observations = self.state.get_observations(&action);
         self.observation_tracker
-            .observe(visibility, active_player.as_index());
+            .observe_all(observations, active_player.as_index());
         self.state.update(action);
     }
 

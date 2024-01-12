@@ -1,6 +1,7 @@
 use crate::game_logic::action::Parsable;
 use crate::implementations::auction::Card;
 use libloading::{Library, Symbol};
+use std::time::{Duration, Instant};
 
 pub struct HandRanker {
     library: Library,
@@ -151,6 +152,31 @@ impl HandRanker {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn test_tie_win_loss_strengths() {
+        let hand_ranker = HandRanker::new();
+        let hand = [
+            Card::new("Kc").to_usize().unwrap() as u8, 
+            Card::new("Kd").to_usize().unwrap() as u8
+        ];
+        let community_cards = [
+            Card::new("2h").to_usize().unwrap() as u8, 
+            Card::new("3s").to_usize().unwrap() as u8, 
+            Card::new("4h").to_usize().unwrap() as u8
+        ];
+        let iterations = 10_000;
+        let time = Instant::now(); 
+        let tie_strength = hand_ranker.rollout_bid_tie(&hand, &community_cards, iterations);
+        let win_strength = hand_ranker.rollout_bid_win(&hand, &community_cards, iterations);
+        let loss_strength = hand_ranker.rollout_bid_loss(&hand, &community_cards, iterations);
+        println!("Time: {:?}", time.elapsed());
+        println!("Tie: {}", tie_strength);
+        println!("Win: {}", win_strength);
+        println!("Loss: {}", loss_strength);
+        assert!(win_strength > tie_strength);
+        assert!(win_strength > loss_strength);
+        assert!(loss_strength < tie_strength);
+    }
     #[test] 
     fn test_rollout_bid() {
         let hand_ranker = HandRanker::new();
@@ -160,7 +186,7 @@ mod tests {
         ];
         let community_cards = [
             Card::new("Kh").to_usize().unwrap() as u8, 
-            Card::new("Ks").to_usize().unwrap() as u8, 
+            Card::new("Qs").to_usize().unwrap() as u8, 
             Card::new("4h").to_usize().unwrap() as u8
         ];
         let iterations = 10_000;
@@ -174,10 +200,10 @@ mod tests {
     #[test]
     fn rollout_with_8_better_than_7_straight() {
         let hand_ranker = HandRanker::new();
-        let card1 = Card::new("8c").to_usize().unwrap() as u8;
+        let card1 = Card::new("Tc").to_usize().unwrap() as u8;
         let card2 = Card::new("9c").to_usize().unwrap() as u8;
         let cards = [card1, card2];
-        let iterations = 10_000;
+        let iterations = 100_000;
         let weak = hand_ranker.rollout_2_7(&cards, iterations);
         let strong = hand_ranker.rollout_2_8(&cards, iterations);
         println!("Weak (straight): {}", weak);
