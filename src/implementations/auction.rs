@@ -286,14 +286,20 @@ pub enum AuctionPokerAction {
     Call,
     Check,
     DealHole(CardIndex, usize), // Card dealt, player index
-    DealCommunity(CardIndex),
+    DealCommunity(CardIndex),  // Deals a community card to the board
     Raise(u32, u32), // amount, nearest whole percent
     Bid(u32),        //  representing an auction size from one of the players
-    Auction(Winner),
-    BettingRoundStart,
+
+    ///////////////
+    // These are not really "actions" they don't change the game state
+    // but they are markers that make it easier to process and extract
+    // features and insights from the game
+    ///////////////
+    BettingRoundStart, 
     BettingRoundEnd,
     AuctionStart,
     PlayerActionEnd(usize),
+    Auction(Winner),
 }
 
 impl Parsable for AuctionPokerAction {
@@ -850,7 +856,9 @@ impl State<AuctionPokerAction> for AuctionPokerState {
                 self.pips = [0, 0];
                 self.raise = None;
 
+                // Sanity check pot amounts
                 debug_assert_eq!(self.stacks[0] + self.stacks[1] + self.pot, 2 * STACK_SIZE);
+
                 self.active_player = self.betting_round_end();
             }
             AuctionPokerAction::Check => {
@@ -912,6 +920,7 @@ impl State<AuctionPokerAction> for AuctionPokerState {
                     self.raise = None;
                 }
 
+                // Sanity check pot amounts
                 debug_assert_eq!(self.stacks[0] + self.stacks[1] + self.pot, 2 * STACK_SIZE);
 
                 // End the action, but not the round 
@@ -939,8 +948,11 @@ impl State<AuctionPokerAction> for AuctionPokerState {
                     }
                 }
                 self.pot = self.new_pot_after(&AuctionPokerAction::Auction(winner));
-                // Always needs to deal hole cards after an auction
+
+                // Sanity check pot amounts
                 debug_assert_eq!(self.stacks[0] + self.stacks[1] + self.pot, 2 * STACK_SIZE);
+
+                // Always needs to deal hole cards after an auction
                 self.active_player = self.hole_card_dealer();
             },
 
@@ -963,9 +975,9 @@ impl State<AuctionPokerAction> for AuctionPokerState {
             }
 
             AuctionPokerAction::AuctionStart => {
-                // This is just a formality so that
-                // observations and features at the auction start can be made
-                // independently
+                // Note: This is action/marker is just a formality so that
+                // observations and features at the start of the auction can be made
+                // independently of the logic needed to update the game state
                 self.active_player = self.auction_continue();
             }
 
