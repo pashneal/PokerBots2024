@@ -44,7 +44,9 @@ where
     }
 
     pub fn history(&self, player: usize) -> CondensedInfoSet {
-        self.observation_tracker.get_history(player).into_condensed()
+        self.observation_tracker
+            .get_history(player)
+            .into_condensed()
     }
 
     pub fn active_player(&self) -> ActivePlayer<A> {

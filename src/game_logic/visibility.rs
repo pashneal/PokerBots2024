@@ -35,7 +35,7 @@ impl From<CondensedInfoSet> for History {
 #[derive(Clone, Debug)]
 pub struct ObservationTracker {
     player_info_sets: Vec<Vec<ActionIndex>>,
-    player_feature_sets : Vec<Option<Vec<Feature>>>, 
+    player_feature_sets: Vec<Option<Vec<Feature>>>,
 }
 
 /// Observable features of a typical poker game
@@ -53,7 +53,6 @@ pub struct ObservationTracker {
 ///     - it does require us to have a blazingly fast evaluator hehehehehhehe
 ///       (which we don't yet but I'd much rather work on that instead of this)
 
-
 #[derive(Clone, Debug)]
 pub enum Round {
     PreFlop,
@@ -63,7 +62,6 @@ pub enum Round {
     River,
 }
 
-
 #[derive(Clone, Debug)]
 pub enum BidResult {
     Player(u8),
@@ -72,10 +70,10 @@ pub enum BidResult {
 
 #[derive(Clone, Debug)]
 pub enum Feature {
-    Suited(bool),  // True if the hand is suited
+    Suited(bool),        // True if the hand is suited
     Ranks(usize, usize), // Sorted from highest to lowest
-    EV(u16),        // Expected value of the hand as a percentage (0-100)
-    Pot(u8),       // Pot size as a percentage of a stack (0-200)
+    EV(u16),             // Expected value of the hand as a percentage (0-100)
+    Pot(u8),             // Pot size as a percentage of a stack (0-200)
     Order(Round),
     Auction(BidResult),
 }
@@ -93,11 +91,11 @@ impl Into<ActionIndex> for Feature {
                 Round::Flop => 2,
                 Round::Turn => 3,
                 Round::River => 4,
-            }
+            },
             Feature::Auction(result) => match result {
                 BidResult::Player(player) => player as ActionIndex,
                 BidResult::Tie => 2,
-            }
+            },
         }
     }
 }
@@ -127,7 +125,7 @@ impl ObservationTracker {
     }
 
     pub fn get_history(&self, player: usize) -> History {
-        if let Some(history) = &self.player_feature_sets[player] { 
+        if let Some(history) = &self.player_feature_sets[player] {
             let action_indices = history.iter().map(|action| action.clone().into()).collect();
             History(action_indices)
         } else {
@@ -135,7 +133,11 @@ impl ObservationTracker {
         }
     }
 
-    pub fn observe_all<A: Action>(&mut self, observations: Vec<Observation<A>>, active_player_index: Option<usize>){
+    pub fn observe_all<A: Action>(
+        &mut self,
+        observations: Vec<Observation<A>>,
+        active_player_index: Option<usize>,
+    ) {
         for observation in observations {
             self.observe(observation, active_player_index);
         }
@@ -152,12 +154,12 @@ impl ObservationTracker {
                     for player in 0..NUM_REGULAR_PLAYERS {
                         self.player_info_sets[player].push(action.clone().into());
                     }
-                },
+                }
                 Information::Features(features) => {
                     for player in 0..NUM_REGULAR_PLAYERS {
                         self.player_feature_sets[player] = Some(features.clone());
                     }
-                },
+                }
                 _ => {}
             },
 
@@ -166,12 +168,12 @@ impl ObservationTracker {
                     if let Some(player_index) = active_player_index {
                         self.player_info_sets[player_index].push(action.clone().into());
                     }
-                },
+                }
                 Information::Features(features) => {
                     if let Some(player_index) = active_player_index {
                         self.player_feature_sets[player_index] = Some(features.clone());
                     }
-                },
+                }
                 _ => {}
             },
 
@@ -180,12 +182,12 @@ impl ObservationTracker {
                     for player in players {
                         self.player_info_sets[player].push(action.clone().into());
                     }
-                },
+                }
                 Information::Features(features) => {
                     for player in players {
                         self.player_feature_sets[player] = Some(features.clone());
                     }
-                },
+                }
                 _ => {}
             },
         }

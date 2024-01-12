@@ -9,4 +9,4 @@ pub const BIG_BLIND: u32 = 2;
 pub const LITTLE_BLIND: u32 = 1;
 pub const MIN_BET_AMOUNT: u32 = BIG_BLIND;
 pub const STACK_SIZE: u32 = 400;
-pub const MAX_POT : u32 = 2 * STACK_SIZE;
+pub const MAX_POT: u32 = 2 * STACK_SIZE;

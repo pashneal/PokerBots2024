@@ -30,19 +30,19 @@ impl HandRanker {
             let func: Symbol<unsafe extern "C" fn(u8, u8, u8, u8, u8, u8, u8, u8) -> u32> =
                 self.library.get(b"get_rank8").unwrap();
             func(
-                cards[0], cards[1], cards[2], cards[3], cards[4], cards[5], cards[6], cards[7]
+                cards[0], cards[1], cards[2], cards[3], cards[4], cards[5], cards[6], cards[7],
             )
         }
     }
 
-    pub fn rollout_2_7(&self, cards : &[u8], iterations : u32) -> f64 {
+    pub fn rollout_2_7(&self, cards: &[u8], iterations: u32) -> f64 {
         unsafe {
             let func: Symbol<unsafe extern "C" fn(u8, u8, u32) -> f64> =
                 self.library.get(b"rollout_2_7").unwrap();
             func(cards[0], cards[1], iterations)
         }
     }
-    pub fn rollout_2_8(&self, cards : &[u8], iterations : u32) -> f64 {
+    pub fn rollout_2_8(&self, cards: &[u8], iterations: u32) -> f64 {
         unsafe {
             let func: Symbol<unsafe extern "C" fn(u8, u8, u32) -> f64> =
                 self.library.get(b"rollout_2_8").unwrap();
@@ -50,101 +50,196 @@ impl HandRanker {
         }
     }
 
-    pub fn rollout_bid_win(&self, hand: &[u8] ,  community_cards : &[u8], iterations: u32) -> f64 {
+    pub fn rollout_bid_win(&self, hand: &[u8], community_cards: &[u8], iterations: u32) -> f64 {
         unsafe {
             let func: Symbol<unsafe extern "C" fn(u8, u8, u8, u8, u8, u32) -> f64> =
                 self.library.get(b"rollout_bid_win").unwrap();
-            func(hand[0], hand[1], community_cards[0], community_cards[1], community_cards[2], iterations)
+            func(
+                hand[0],
+                hand[1],
+                community_cards[0],
+                community_cards[1],
+                community_cards[2],
+                iterations,
+            )
         }
     }
-    pub fn rollout_bid_loss(&self, hand: &[u8] ,  community_cards : &[u8], iterations: u32) -> f64 {
+    pub fn rollout_bid_loss(&self, hand: &[u8], community_cards: &[u8], iterations: u32) -> f64 {
         unsafe {
             let func: Symbol<unsafe extern "C" fn(u8, u8, u8, u8, u8, u32) -> f64> =
                 self.library.get(b"rollout_bid_loss").unwrap();
-            func(hand[0], hand[1], community_cards[0], community_cards[1], community_cards[2], iterations)
+            func(
+                hand[0],
+                hand[1],
+                community_cards[0],
+                community_cards[1],
+                community_cards[2],
+                iterations,
+            )
         }
     }
 
-    pub fn rollout_bid_tie(&self, hand: &[u8] ,  community_cards : &[u8], iterations: u32) -> f64 {
+    pub fn rollout_bid_tie(&self, hand: &[u8], community_cards: &[u8], iterations: u32) -> f64 {
         unsafe {
             let func: Symbol<unsafe extern "C" fn(u8, u8, u8, u8, u8, u32) -> f64> =
                 self.library.get(b"rollout_bid_tie").unwrap();
-            func(hand[0], hand[1], community_cards[0], community_cards[1], community_cards[2], iterations)
+            func(
+                hand[0],
+                hand[1],
+                community_cards[0],
+                community_cards[1],
+                community_cards[2],
+                iterations,
+            )
         }
     }
 
-    pub fn rollout_flop_won(&self, hand: &[u8] ,  community_cards : &[u8], iterations: u32) -> f64 {
+    pub fn rollout_flop_won(&self, hand: &[u8], community_cards: &[u8], iterations: u32) -> f64 {
         unsafe {
             let func: Symbol<unsafe extern "C" fn(u8, u8, u8, u8, u8, u8, u32) -> f64> =
                 self.library.get(b"rollout_flop_won").unwrap();
-            func(hand[0], hand[1], hand[2], community_cards[0], community_cards[1], community_cards[2], iterations)
+            func(
+                hand[0],
+                hand[1],
+                hand[2],
+                community_cards[0],
+                community_cards[1],
+                community_cards[2],
+                iterations,
+            )
         }
     }
 
-    pub fn rollout_flop_lost(&self, hand: &[u8] ,  community_cards : &[u8], iterations: u32) -> f64 {
+    pub fn rollout_flop_lost(&self, hand: &[u8], community_cards: &[u8], iterations: u32) -> f64 {
         unsafe {
             let func: Symbol<unsafe extern "C" fn(u8, u8, u8, u8, u8, u32) -> f64> =
                 self.library.get(b"rollout_flop_lost").unwrap();
-            func(hand[0], hand[1], community_cards[0], community_cards[1], community_cards[2], iterations)
+            func(
+                hand[0],
+                hand[1],
+                community_cards[0],
+                community_cards[1],
+                community_cards[2],
+                iterations,
+            )
         }
     }
 
-
-    pub fn rollout_flop_tie(&self, hand: &[u8] ,  community_cards : &[u8], iterations: u32) -> f64 {
+    pub fn rollout_flop_tie(&self, hand: &[u8], community_cards: &[u8], iterations: u32) -> f64 {
         unsafe {
             let func: Symbol<unsafe extern "C" fn(u8, u8, u8, u8, u8, u8, u32) -> f64> =
                 self.library.get(b"rollout_flop_tie").unwrap();
-            func(hand[0], hand[1], hand[2], community_cards[0], community_cards[1], community_cards[2], iterations)
+            func(
+                hand[0],
+                hand[1],
+                hand[2],
+                community_cards[0],
+                community_cards[1],
+                community_cards[2],
+                iterations,
+            )
         }
     }
 
-    pub fn rollout_turn_won(&self, hand: &[u8] ,  community_cards : &[u8], iterations: u32) -> f64 {
+    pub fn rollout_turn_won(&self, hand: &[u8], community_cards: &[u8], iterations: u32) -> f64 {
         unsafe {
             let func: Symbol<unsafe extern "C" fn(u8, u8, u8, u8, u8, u8, u8, u32) -> f64> =
                 self.library.get(b"rollout_turn_won").unwrap();
-            func(hand[0], hand[1], hand[2], community_cards[0], community_cards[1], community_cards[2], community_cards[3], iterations)
+            func(
+                hand[0],
+                hand[1],
+                hand[2],
+                community_cards[0],
+                community_cards[1],
+                community_cards[2],
+                community_cards[3],
+                iterations,
+            )
         }
     }
 
-    pub fn rollout_turn_lost(&self, hand: &[u8] ,  community_cards : &[u8], iterations: u32) -> f64 {
+    pub fn rollout_turn_lost(&self, hand: &[u8], community_cards: &[u8], iterations: u32) -> f64 {
         unsafe {
             let func: Symbol<unsafe extern "C" fn(u8, u8, u8, u8, u8, u32) -> f64> =
                 self.library.get(b"rollout_turn_lost").unwrap();
-            func(hand[0], hand[1], community_cards[0], community_cards[1], community_cards[2], iterations)
+            func(
+                hand[0],
+                hand[1],
+                community_cards[0],
+                community_cards[1],
+                community_cards[2],
+                iterations,
+            )
         }
     }
 
-    pub fn rollout_turn_tie(&self, hand: &[u8] ,  community_cards : &[u8], iterations: u32) -> f64 {
+    pub fn rollout_turn_tie(&self, hand: &[u8], community_cards: &[u8], iterations: u32) -> f64 {
         unsafe {
             let func: Symbol<unsafe extern "C" fn(u8, u8, u8, u8, u8, u8, u8, u32) -> f64> =
                 self.library.get(b"rollout_turn_tie").unwrap();
-            func(hand[0], hand[1], hand[2], community_cards[0], community_cards[1], community_cards[2], community_cards[3], iterations)
+            func(
+                hand[0],
+                hand[1],
+                hand[2],
+                community_cards[0],
+                community_cards[1],
+                community_cards[2],
+                community_cards[3],
+                iterations,
+            )
         }
     }
 
-    pub fn rollout_river_won(&self, hand: &[u8] ,  community_cards : &[u8], iterations: u32) -> f64 {
+    pub fn rollout_river_won(&self, hand: &[u8], community_cards: &[u8], iterations: u32) -> f64 {
         unsafe {
             let func: Symbol<unsafe extern "C" fn(u8, u8, u8, u8, u8, u8, u8, u8, u32) -> f64> =
                 self.library.get(b"rollout_river_won").unwrap();
-            func(hand[0], hand[1], hand[2], community_cards[0], community_cards[1], community_cards[2], community_cards[3], community_cards[4], iterations)
+            func(
+                hand[0],
+                hand[1],
+                hand[2],
+                community_cards[0],
+                community_cards[1],
+                community_cards[2],
+                community_cards[3],
+                community_cards[4],
+                iterations,
+            )
         }
     }
 
-    pub fn rollout_river_lost(&self, hand: &[u8] ,  community_cards : &[u8], iterations: u32) -> f64 {
+    pub fn rollout_river_lost(&self, hand: &[u8], community_cards: &[u8], iterations: u32) -> f64 {
         unsafe {
-            let func: Symbol<unsafe extern "C" fn(
-                u8, u8, u8, u8, u8, u8, u8, u32) -> f64> =
+            let func: Symbol<unsafe extern "C" fn(u8, u8, u8, u8, u8, u8, u8, u32) -> f64> =
                 self.library.get(b"rollout_river_lost").unwrap();
-            func(hand[0], hand[2], community_cards[0], community_cards[1], community_cards[2], community_cards[3], community_cards[4], iterations)
+            func(
+                hand[0],
+                hand[2],
+                community_cards[0],
+                community_cards[1],
+                community_cards[2],
+                community_cards[3],
+                community_cards[4],
+                iterations,
+            )
         }
     }
 
-    pub fn rollout_river_tie(&self, hand: &[u8] ,  community_cards : &[u8], iterations: u32) -> f64 {
+    pub fn rollout_river_tie(&self, hand: &[u8], community_cards: &[u8], iterations: u32) -> f64 {
         unsafe {
-            let func: Symbol<unsafe extern "C" fn(
-                u8, u8, u8, u8, u8, u8, u8, u8, u32) -> f64> =
+            let func: Symbol<unsafe extern "C" fn(u8, u8, u8, u8, u8, u8, u8, u8, u32) -> f64> =
                 self.library.get(b"rollout_river_tie").unwrap();
-            func(hand[0], hand[1], hand[2], community_cards[0], community_cards[1], community_cards[2], community_cards[3], community_cards[4], iterations)
+            func(
+                hand[0],
+                hand[1],
+                hand[2],
+                community_cards[0],
+                community_cards[1],
+                community_cards[2],
+                community_cards[3],
+                community_cards[4],
+                iterations,
+            )
         }
     }
 }
@@ -156,16 +251,16 @@ mod tests {
     fn test_tie_win_loss_strengths() {
         let hand_ranker = HandRanker::new();
         let hand = [
-            Card::new("Kc").to_usize().unwrap() as u8, 
-            Card::new("Kd").to_usize().unwrap() as u8
+            Card::new("Kc").to_usize().unwrap() as u8,
+            Card::new("Kd").to_usize().unwrap() as u8,
         ];
         let community_cards = [
-            Card::new("2h").to_usize().unwrap() as u8, 
-            Card::new("3s").to_usize().unwrap() as u8, 
-            Card::new("4h").to_usize().unwrap() as u8
+            Card::new("2h").to_usize().unwrap() as u8,
+            Card::new("3s").to_usize().unwrap() as u8,
+            Card::new("4h").to_usize().unwrap() as u8,
         ];
         let iterations = 10_000;
-        let time = Instant::now(); 
+        let time = Instant::now();
         let tie_strength = hand_ranker.rollout_bid_tie(&hand, &community_cards, iterations);
         let win_strength = hand_ranker.rollout_bid_win(&hand, &community_cards, iterations);
         let loss_strength = hand_ranker.rollout_bid_loss(&hand, &community_cards, iterations);
@@ -177,17 +272,17 @@ mod tests {
         assert!(win_strength > loss_strength);
         assert!(loss_strength < tie_strength);
     }
-    #[test] 
+    #[test]
     fn test_rollout_bid() {
         let hand_ranker = HandRanker::new();
         let hand = [
-            Card::new("Kc").to_usize().unwrap() as u8, 
-            Card::new("Kd").to_usize().unwrap() as u8
+            Card::new("Kc").to_usize().unwrap() as u8,
+            Card::new("Kd").to_usize().unwrap() as u8,
         ];
         let community_cards = [
-            Card::new("Kh").to_usize().unwrap() as u8, 
-            Card::new("Qs").to_usize().unwrap() as u8, 
-            Card::new("4h").to_usize().unwrap() as u8
+            Card::new("Kh").to_usize().unwrap() as u8,
+            Card::new("Qs").to_usize().unwrap() as u8,
+            Card::new("4h").to_usize().unwrap() as u8,
         ];
         let iterations = 10_000;
         let strong = hand_ranker.rollout_bid_win(&hand, &community_cards, iterations);
@@ -195,7 +290,6 @@ mod tests {
         println!("Strong (bid): {}", strong);
         println!("Weak (bid): {}", weak);
         assert!(strong > weak);
-
     }
     #[test]
     fn rollout_with_8_better_than_7_straight() {
@@ -224,7 +318,6 @@ mod tests {
         println!("Strong (kings): {}", strong);
         assert!(weak < strong);
     }
-
 
     #[test]
     fn rollout_with_8_better_than_7_aces() {
@@ -270,7 +363,7 @@ mod tests {
         let hand_ranker = HandRanker::new();
         // test with royal flush so we are sure it is working (only one possible
         // best hand in set of 8 if royal flush)
-        let cards  = [
+        let cards = [
             Card::new("2d"),
             Card::new("4d"),
             Card::new("Kc"),
@@ -286,7 +379,7 @@ mod tests {
             .map(|c| c.to_usize().unwrap() as u8)
             .collect::<Vec<u8>>();
         let rank = hand_ranker.rank8(&cards);
-        let cards7  = [
+        let cards7 = [
             Card::new("4h"),
             Card::new("Ac"),
             Card::new("9d"),
