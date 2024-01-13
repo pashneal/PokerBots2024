@@ -525,7 +525,7 @@ impl AuctionPokerState {
         features
     }
 
-    // Calculate the ev if it's the first time we've seen this round and player
+    // Calculate the EV of a player's hand at a given round and cache + return it
     fn get_player_ev(&mut self, round: &Round, player_num: usize) -> f32 {
         // If we've already calculated the ev, return it
         let round_index: usize = round.clone().into();

@@ -308,3 +308,138 @@ where
         self.apply_on(&vec![raw.clone()]).len() > 0
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::implementations::auction::{AuctionPokerAction, RaiseSize};
+    use std::collections::HashSet;
+
+    #[test]
+    pub fn test_default_behavior() {
+        // Should map elements that have the same ActionIndex
+        // to the median of the inputs when there is no
+        // custom ActionMapper provided
+        //
+        // median here is a bit ill-defined for Fold, Call, Check
+        // but useful in the context of
+        // comparing Raise(x) vs Raise(y) where x != y
+
+        let game_mapper: GameMapper<AuctionPokerAction> = GameMapper::new(None);
+
+        use AuctionPokerAction::*;
+        use RaiseSize::*;
+        let actions = vec![
+            Fold,
+            Call,
+            Raise(Percent(50)),
+            Raise(Percent(100)),
+            Raise(Percent(150)),
+        ];
+
+        // make sure this test is still valid (all actions map to distinct indices)
+        assert_eq!(
+            actions.len(),
+            actions
+                .iter()
+                .map(|x| {
+                    let index: ActionIndex = x.clone().into();
+                    index
+                })
+                .collect::<HashSet<_>>()
+                .len(),
+            "Underlying assumptions about the uniqueness and validity \
+                   of the actions above have changed! Did you change the bet \
+                   sizes or the way Into<ActionIndex> is implemented for them? \
+                   If so, change the test above."
+        );
+
+        let mapped = game_mapper.map_actions(&actions, 0);
+
+        assert_eq!(
+            mapped.iter().collect::<HashSet<_>>(),
+            actions.iter().collect::<HashSet<_>>(),
+            "The mapped actions should be the same as the original actions"
+        );
+
+
+        // Make sure the test is still valid (certain actions map to equivalent indices)
+        let action_group_1 = vec![Fold];
+        let action_group_2 = vec![Call];
+        let action_group_3 = vec![Raise(Percent(50))];
+        let action_group_4 = vec![Raise(Percent(51)), Raise(Percent(52)), Raise(Percent(53))];
+        let action_group_5 = vec![Raise(Percent(101)), Raise(Percent(102)), Raise(Percent(103)), Raise(Percent(104))];
+
+        let groups = vec![action_group_1.clone(), action_group_2.clone(), action_group_3.clone(), action_group_4.clone(), action_group_5.clone()];
+
+        for group in groups.clone() {
+            assert_eq!(
+                1,
+                group
+                    .iter()
+                    .map(|x| {
+                        let index: ActionIndex = x.clone().into();
+                        index
+                    })
+                    .collect::<HashSet<_>>()
+                    .len(),
+                "Underlying assumptions about the uniqueness and validity \
+                       of the actions above have changed! Did you change the bet \
+                       sizes or the way Into<ActionIndex> is implemented for them? \
+                       If so, change the test above."
+            );
+        }
+        // Make sure that they map to five distinct indices
+        assert_eq!(
+            groups.len(),
+            groups
+                .iter()
+                .map(|x| {
+                    let index: ActionIndex = x[0].clone().into();
+                    index
+                })
+                .collect::<HashSet<_>>()
+                .len(),
+            "Underlying assumptions about the uniqueness and validity \
+                   of the actions above have changed! Did you change the bet \
+                   sizes or the way Into<ActionIndex> is implemented for them? \
+                   If so, change the test above."
+        );
+
+        // Test is valid, now test the actual behavior
+        let mut actions = action_group_1.clone();
+        actions.extend(action_group_2.clone());
+        actions.extend(action_group_3.clone());
+        actions.extend(action_group_4.clone());
+        actions.extend(action_group_5.clone());
+
+        let mapped = game_mapper.map_actions(&actions, 0);
+        assert_eq!( 5, mapped.len(), "There should be 5 distinct action groups after mapping" );
+
+        // Because median is ill defined for even groups, 
+        // can be Raise(102) or Raise(103) for the test, test that
+        // it's either
+        let possible_mapping_1 = vec![
+            Fold,
+            Call,
+            Raise(Percent(50)),
+            Raise(Percent(52)),
+            Raise(Percent(102)),
+        ];
+        let possible_mapping_2 = vec![
+            Fold,
+            Call,
+            Raise(Percent(50)),
+            Raise(Percent(52)),
+            Raise(Percent(103)),
+        ];
+
+        // Convert to sets to make sure that the order doesn't matter
+        assert!(
+            mapped.iter().collect::<HashSet<_>>() == possible_mapping_1.iter().collect::<HashSet<_>>() ||
+            mapped.iter().collect::<HashSet<_>>() == possible_mapping_2.iter().collect::<HashSet<_>>(),
+            "The mapped actions should be one of two possible mappings"
+        );
+
+    }
+}
