@@ -1184,7 +1184,7 @@ mod tests {
 
         match state.active_player() {
             ActivePlayer::Player(player, actions) => {
-                assert_eq!(player, 0);
+                assert_eq!(player, 1);
                 assert_eq!(actions.contains(&AuctionPokerAction::Fold), false);
                 assert_eq!(actions.contains(&AuctionPokerAction::Call), false);
                 assert_eq!(actions.contains(&AuctionPokerAction::Check), false);
@@ -1216,7 +1216,7 @@ mod tests {
         state.update(AuctionPokerAction::Bid(100));
         match state.active_player() {
             ActivePlayer::Player(player, actions) => {
-                assert_eq!(player, 1);
+                assert_eq!(player, 0);
                 assert_eq!(actions.contains(&AuctionPokerAction::Fold), false);
                 assert_eq!(actions.contains(&AuctionPokerAction::Call), false);
                 assert_eq!(actions.contains(&AuctionPokerAction::Check), false);
@@ -1248,12 +1248,12 @@ mod tests {
 
         state.update(AuctionPokerAction::Bid(300));
 
-        // Player 1 should have won the auction
+        // Player 0 should have won the auction
         assert_eq!(
             state
                 .active_player()
                 .actions()
-                .contains(&AuctionPokerAction::Auction(Winner::Player(1))),
+                .contains(&AuctionPokerAction::Auction(Winner::Player(0))),
             true
         );
     }
@@ -1272,8 +1272,12 @@ mod tests {
         state.update(AuctionPokerAction::DealCommunity(6));
         state.update(AuctionPokerAction::DealCommunity(7));
         state.update(AuctionPokerAction::AuctionStart);
-        state.update(AuctionPokerAction::Bid(0));
         state.update(AuctionPokerAction::Bid(1));
+        state.update(AuctionPokerAction::Bid(0));
+        assert!(state
+            .active_player()
+            .actions()
+            .contains(&AuctionPokerAction::Auction(Winner::Player(1))));
         state.update(AuctionPokerAction::Auction(Winner::Player(1)));
         state.update(AuctionPokerAction::DealHole(8, 1));
         state.update(AuctionPokerAction::BettingRoundStart);
@@ -1281,7 +1285,7 @@ mod tests {
         let active_player = state.active_player();
         match active_player {
             ActivePlayer::Player(player, actions) => {
-                assert_eq!(player, 0);
+                assert_eq!(player, 1);
                 assert_eq!(actions.contains(&AuctionPokerAction::Fold), false);
                 assert_eq!(actions.contains(&AuctionPokerAction::Call), false);
                 assert_eq!(actions.contains(&AuctionPokerAction::Check), true);
@@ -1290,12 +1294,12 @@ mod tests {
         }
 
         state.update(AuctionPokerAction::Check);
-        state.update(AuctionPokerAction::PlayerActionEnd(0));
+        state.update(AuctionPokerAction::PlayerActionEnd(1));
 
         let active_player = state.active_player();
         match active_player {
             ActivePlayer::Player(player, actions) => {
-                assert_eq!(player, 1);
+                assert_eq!(player, 0);
                 assert_eq!(actions.contains(&AuctionPokerAction::Fold), false);
                 assert_eq!(actions.contains(&AuctionPokerAction::Call), false);
                 assert_eq!(actions.contains(&AuctionPokerAction::Check), true);
@@ -1338,7 +1342,7 @@ mod tests {
             .active_player()
             .actions()
             .iter()
-            .all(|x| matches!(x, AuctionPokerAction::PlayerActionEnd(_))));
+            .all(|x| matches!(x, AuctionPokerAction::PlayerActionEnd(0))));
         state.update(AuctionPokerAction::PlayerActionEnd(0));
         state.update(AuctionPokerAction::Call);
 
@@ -1369,8 +1373,8 @@ mod tests {
         state.update(AuctionPokerAction::AuctionStart);
 
         // Auction starts
-        state.update(AuctionPokerAction::Bid(50));
         state.update(AuctionPokerAction::Bid(25));
+        state.update(AuctionPokerAction::Bid(50));
 
         // Make sure that player 0 won!
         // pot = 18 + 25 = 43 (9 contributed by player 1)
@@ -1412,7 +1416,7 @@ mod tests {
                 .any(|x| matches!(x, AuctionPokerAction::Raise(_, _))),
             true
         );
-        assert_eq!(state.active_player().player_num() == 0, true);
+        assert_eq!(state.active_player().player_num() == 1, true);
 
         state.update(AuctionPokerAction::Check);
         // Check that we marked the player's action with PlayerActionEnd
@@ -1420,8 +1424,8 @@ mod tests {
             .active_player()
             .actions()
             .iter()
-            .all(|x| matches!(x, AuctionPokerAction::PlayerActionEnd(_))));
-        state.update(AuctionPokerAction::PlayerActionEnd(0));
+            .all(|x| matches!(x, AuctionPokerAction::PlayerActionEnd(1))));
+        state.update(AuctionPokerAction::PlayerActionEnd(1));
         state.update(AuctionPokerAction::Check);
 
         // Make sure betting round is over
@@ -1460,10 +1464,10 @@ mod tests {
                 .any(|x| matches!(x, AuctionPokerAction::Raise(_, _))),
             true
         );
-        assert_eq!(state.active_player().player_num() == 0, true);
+        assert_eq!(state.active_player().player_num() == 1, true);
 
         state.update(AuctionPokerAction::Check);
-        state.update(AuctionPokerAction::PlayerActionEnd(0));
+        state.update(AuctionPokerAction::PlayerActionEnd(1));
         state.update(AuctionPokerAction::Check);
         assert!(state
             .active_player()
@@ -1490,7 +1494,7 @@ mod tests {
             .contains(&AuctionPokerAction::BettingRoundStart));
         state.update(AuctionPokerAction::BettingRoundStart);
 
-        // Check if it's the first player and we're allowed to raise
+        // Check if it's the second player and we're allowed to raise
         assert_eq!(
             state
                 .active_player()
@@ -1499,10 +1503,10 @@ mod tests {
                 .any(|x| matches!(x, AuctionPokerAction::Raise(_, _))),
             true
         );
-        assert_eq!(state.active_player().player_num() == 0, true);
+        assert_eq!(state.active_player().player_num() == 1, true);
 
         state.update(AuctionPokerAction::Check);
-        state.update(AuctionPokerAction::PlayerActionEnd(0));
+        state.update(AuctionPokerAction::PlayerActionEnd(1));
         state.update(AuctionPokerAction::Check);
         assert!(state
             .active_player()

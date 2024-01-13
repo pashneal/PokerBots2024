@@ -9,11 +9,11 @@ pub trait Action: Clone + Debug + Filterable + Into<ActionIndex> + From<ActionIn
 pub type ActionFilter<A> = (Filter<A>, A);
 
 #[derive(Debug, Clone)]
-pub struct ActionMapper<A: Filterable> {
+pub struct ActionMapper<A: Action> {
     filters: Vec<ActionFilter<A>>,
 }
 
-impl<A: Filterable> ActionMapper<A> {
+impl<A: Action> ActionMapper<A> {
     pub fn new() -> Self {
         ActionMapper {
             filters: Vec::new(),
@@ -34,9 +34,19 @@ impl<A: Filterable> ActionMapper<A> {
             action
         );
     }
+
+    /// Map an action to a new action
+    /// Precondition:
+    /// all actions must map to 
+    /// the same action index after filtering
     pub fn map(&self, action: A) -> A {
         for (filter, mapped_action) in &self.filters {
             if filter.accepts(&action) {
+                debug_assert!({
+                    let mapped_action_index : ActionIndex = mapped_action.clone().into();
+                    let action_index : ActionIndex = action.clone().into();
+                    mapped_action_index == action_index
+                });
                 return mapped_action.clone();
             }
         }
@@ -141,6 +151,8 @@ impl<A: Filterable + Action> GameMapper<A> {
         //       which is also captured by F, would enforce legality of actions
         //       and consistency of groups implicitly
         // TODO: bruh this doesn't reduce the action space lol
+        //
+        //
         let mapper = &self.depth_specific_maps[depth];
         match mapper {
             Some(mapper) => actions
