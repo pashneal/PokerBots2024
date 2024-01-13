@@ -41,11 +41,11 @@ impl<A: Action + Sync + Send + 'static, S: State<A> + Send + 'static> MCCFRParal
         for i in 0..self.threads {
             let mut runner = self.runners[i].clone();
             let iters = thread_iters[i];
-            threads.push(std::thread::spawn(move || {
+            threads.push(std::thread::Builder::new().stack_size(100*1024*1024).spawn(move || {
                 let mut rng = SmallRng::seed_from_u64(2);
                 runner.run_iterations(iters, epsilon, &mut rng);
                 runner
-            }));
+            }).unwrap());
         }
         for thread in threads {
             let runner = thread.join().unwrap();

@@ -9,24 +9,24 @@ use std::cmp::Ordering;
 use std::time::{Duration, Instant};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum RaiseSize {
-    Percent(u32),
+pub enum RelativeSize {
+    CentiPercent(u32),
     Amount(u32),
 }
-use RaiseSize::*;
+use RelativeSize::*;
 
-impl RaiseSize {
+impl RelativeSize {
     pub fn to_percent(&self, pot: u32) -> u32 {
         let size = match self {
-            Percent(p) => *p,
-            Amount(a) => (*a as f32 / pot as f32 * 100.0) as u32,
+            CentiPercent(p) => *p,
+            Amount(a) => (*a as f32 / pot as f32 * 1000.0).round() as u32,
         };
         size
     }
 
     pub fn to_amount(&self, pot: u32) -> u32 {
         let size = match self {
-            Percent(p) => (pot as f32 * (*p as f32 / 100.0)) as u32,
+            CentiPercent(p) => (pot as f32 * (*p as f32 / 1000.0)).round() as u32,
             Amount(a) => *a,
         };
         size
@@ -310,9 +310,9 @@ pub enum AuctionPokerAction {
     Fold,
     Call,
     Check,
-    Raise(RaiseSize),
+    Raise(RelativeSize),
+    Bid(RelativeSize),                   //  representing an auction size from one of the players
 
-    Bid(u32),                   //  representing an auction size from one of the players
     DealHole(CardIndex, usize), // Card dealt, player index
     DealCommunity(CardIndex),   // Deals a community card to the board
 
@@ -346,66 +346,116 @@ impl Into<ActionIndex> for AuctionPokerAction {
             AuctionPokerAction::Check => 2,
 
             // We do a much smaller number of bet sizes
-            AuctionPokerAction::Raise(Percent(size)) => {
+            AuctionPokerAction::Raise(CentiPercent(size)) => {
                 match size {
                     // Get really granular for the first several sizes of the pot
-                    0..=5 => 3,
-                    6..=10 => 4,
-                    11..=15 => 5,
-                    16..=20 => 6,
-                    21..=25 => 7,
-                    26..=30 => 8,
-                    31..=35 => 9,
-                    36..=40 => 10,
-                    41..=45 => 11,
-                    46..=50 => 12,
-                    51..=55 => 13,
-                    56..=60 => 14,
-                    61..=65 => 15,
-                    66..=70 => 16,
-                    71..=75 => 17,
-                    76..=80 => 18,
-                    81..=85 => 19,
-                    86..=90 => 20,
-                    91..=95 => 21,
-                    96..=100 => 22,
-                    101..=105 => 23,
-                    106..=110 => 24,
+                    0..=50 => 3,
+                    ..=100 => 4,
+                    ..=150 => 5,
+                    ..=200 => 6,
+                    ..=250 => 7,
+                    ..=300 => 8,
+                    ..=350 => 9,
+                    ..=400 => 10,
+                    ..=450 => 11,
+                    ..=500 => 12,
+                    ..=550 => 13,
+                    ..=600 => 14,
+                    ..=650 => 15,
+                    ..=700 => 16,
+                    ..=750 => 17,
+                    ..=800 => 18,
+                    ..=850 => 19,
+                    ..=900 => 20,
+                    ..=950 => 21,
+                    ..=1000 => 22,
+                    ..=1050 => 23,
+                    ..=1100 => 24,
                     // Get less granular for the rest of the pot sizes
-                    111..=120 => 25,
-                    121..=150 => 26,
-                    151..=200 => 27,
-                    201..=250 => 28,
-                    251..=300 => 29,
-                    301..=350 => 30,
-                    351..=400 => 31,
+                    ..=1200 => 25,
+                    ..=1500 => 26,
+                    ..=2000 => 27,
+                    ..=2500 => 28,
+                    ..=3000 => 29,
+                    ..=3500 => 30,
+                    ..=4000 => 31,
                     // Get wiggy with it
-                    401..=500 => 32,
-                    501..=600 => 33,
-                    601..=700 => 34,
-                    701..=900 => 35,
-                    901..=1000 => 36,
+                    ..=5000 => 32,
+                    ..=6000 => 33,
+                    ..=7000 => 34,
+                    ..=9000 => 35,
+                    ..=10000 => 36,
                     // Okay, now we're just being silly
-                    1001..=1500 => 37,
-                    1501..=2500 => 38,
-                    2501..=5000 => 39,
-                    5001..=10000 => 40,
+                    ..=15000 => 37,
+                    ..=25000 => 38,
+                    ..=50000 => 39,
+                    ..=100000 => 40,
                     // This is just ridiculous, but necessary to capture all-ins
                     // (all ins on preflop are ~13300% of pot)
-                    10001..=100000 => 41,
+                    ..=1000000 => 41,
                     _ => panic!("Well this is awkward... the bet size is too large!"),
                 }
             }
 
-            AuctionPokerAction::Raise(Amount(_)) => panic!(
-                "Cannot convert raise size (amount) to action index! Convert to percent first!"
+            AuctionPokerAction::Raise(Amount(x)) => panic!(
+                "Cannot convert raise size (amount) to action index! Convert to percent first!
+                {:#?}",
+                self.clone()
+            ),
+
+            AuctionPokerAction::Bid(Amount(x)) => { match x {
+                0 => 42,
+                1..=10 => 43,
+                11..=20 => 44,
+                21..=30 => 45,
+                31..=40 => 46,
+                41..=50 => 47,
+                51..=60 => 48,
+                61..=70 => 49,
+                71..=80 => 50,
+                81..=90 => 51,
+                91..=100 => 52,
+                101..=110 => 53,
+                111..=120 => 54,
+                121..=130 => 55,
+                131..=140 => 56,
+                141..=150 => 57,
+                151..=160 => 58,
+                161..=170 => 59,
+                171..=180 => 60,
+                181..=190 => 61,
+                191..=200 => 62,
+                201..=210 => 63,
+                211..=220 => 64,
+                221..=230 => 65,
+                231..=240 => 66,
+                241..=250 => 67,
+                251..=260 => 68,
+                261..=270 => 69,
+                271..=280 => 70,
+                281..=290 => 71,
+                291..=300 => 72,
+                301..=310 => 73,
+                311..=320 => 74,
+                321..=330 => 75,
+                331..=340 => 76,
+                341..=350 => 77,
+                351..=360 => 78,
+                361..=370 => 79,
+                371..=380 => 80,
+                381..=390 => 81,
+                391..=400 => 82,
+                _ => panic!("Well this is awkward... the bid size is too large!"),
+            }}
+
+            AuctionPokerAction::Bid(CentiPercent(_)) => panic!(
+                "Cannot convert bid size (percent) to action index! Convert to amount first!"
             ),
 
             ///////////////////////
             // These should not matter because they are just markers
             // for the game state or performed by the Chance node
             ///////////////////////
-            AuctionPokerAction::Bid(_) => 100,
             AuctionPokerAction::Auction(_) => 100,
             AuctionPokerAction::DealHole(_, _) => 100,
             AuctionPokerAction::DealCommunity(_) => 100,
@@ -419,12 +469,68 @@ impl Into<ActionIndex> for AuctionPokerAction {
 
 impl From<ActionIndex> for AuctionPokerAction {
     fn from(index: ActionIndex) -> Self {
-        todo!();
+        match index {
+            0 => AuctionPokerAction::Fold,
+            1 => AuctionPokerAction::Call,
+            2 => AuctionPokerAction::Check,
+            3 => AuctionPokerAction::Raise(CentiPercent(30)),
+            4 => AuctionPokerAction::Raise(CentiPercent(80)),
+            5 => AuctionPokerAction::Raise(CentiPercent(130)),
+            6 => AuctionPokerAction::Raise(CentiPercent(180)),
+            7 => AuctionPokerAction::Raise(CentiPercent(230)),
+            8 => AuctionPokerAction::Raise(CentiPercent(280)),
+            9 => AuctionPokerAction::Raise(CentiPercent(330)),
+            10 => AuctionPokerAction::Raise(CentiPercent(380)),
+            11 => AuctionPokerAction::Raise(CentiPercent(430)),
+            12 => AuctionPokerAction::Raise(CentiPercent(480)),
+            13 => AuctionPokerAction::Raise(CentiPercent(530)),
+            14 => AuctionPokerAction::Raise(CentiPercent(580)),
+            15 => AuctionPokerAction::Raise(CentiPercent(630)),
+            16 => AuctionPokerAction::Raise(CentiPercent(680)),
+            17 => AuctionPokerAction::Raise(CentiPercent(730)),
+            18 => AuctionPokerAction::Raise(CentiPercent(780)),
+            19 => AuctionPokerAction::Raise(CentiPercent(830)),
+            20 => AuctionPokerAction::Raise(CentiPercent(880)),
+            21 => AuctionPokerAction::Raise(CentiPercent(930)),
+            22 => AuctionPokerAction::Raise(CentiPercent(980)),
+            23 => AuctionPokerAction::Raise(CentiPercent(1030)),
+            24 => AuctionPokerAction::Raise(CentiPercent(1080)),
+            // Get less granular for the rest of the pot sizes
+            25 => AuctionPokerAction::Raise(CentiPercent(1160)),
+            26 => AuctionPokerAction::Raise(CentiPercent(1360)),
+            27 => AuctionPokerAction::Raise(CentiPercent(1750)),
+            28 => AuctionPokerAction::Raise(CentiPercent(2250)),
+            29 => AuctionPokerAction::Raise(CentiPercent(2750)),
+            30 => AuctionPokerAction::Raise(CentiPercent(3250)),
+            31 => AuctionPokerAction::Raise(CentiPercent(3750)),
+            // Get wiggy with it
+            32 => AuctionPokerAction::Raise(CentiPercent(4500)),
+            33 => AuctionPokerAction::Raise(CentiPercent(5500)),
+            34 => AuctionPokerAction::Raise(CentiPercent(6500)),
+            35 => AuctionPokerAction::Raise(CentiPercent(8000)),
+            36 => AuctionPokerAction::Raise(CentiPercent(9500)),
+            // Okay, now we're just being silly
+            37 => AuctionPokerAction::Raise(CentiPercent(12500)),
+            38 => AuctionPokerAction::Raise(CentiPercent(20000)),
+            39 => AuctionPokerAction::Raise(CentiPercent(37500)),
+            40 => AuctionPokerAction::Raise(CentiPercent(75000)),
+            // This is just ridiculous, but necessary to capture all-ins
+            // (all ins on preflop are ~13300% of pot0)
+            41 => AuctionPokerAction::Raise(CentiPercent(500000)),
+            _ => panic!("No"),
+        }
     }
 }
 
 impl Filterable for AuctionPokerAction {}
-impl Action for AuctionPokerAction {}
+impl Action for AuctionPokerAction {
+    fn max_index() -> ActionIndex {
+        83
+    }
+    fn index(&self) -> ActionIndex {
+        self.clone().into()
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct AuctionPokerState {
@@ -537,8 +643,6 @@ impl AuctionPokerState {
         let iterations = EV_ITERATIONS;
 
         let hand = self.player_hands[player_num].cards();
-        println!("Hand: {:?}", hand);
-        println!("Community: {:?}", self.community_cards);
 
         let hand: Vec<u8> = hand.iter().map(|x| x.to_usize().unwrap() as u8).collect();
         let community_cards: Vec<u8> = self
@@ -670,24 +774,24 @@ impl AuctionPokerState {
 
         let mut actions = Vec::new();
 
-        // See variant rules: cannot raise more than either player's stack
-        let max_raise = self.stacks[player_num].min(self.stacks[player_num ^ 1]);
+        // See variant rules: cannot raise more than either player's stack + pip
+        let max_raise = (self.stacks[player_num] + self.pips[player_num]).min(self.stacks[player_num ^ 1] + self.pips[player_num ^ 1]);
 
         for i in min_raise..=max_raise {
-            actions.push(AuctionPokerAction::Raise(Amount(i)));
+            let raise_percent = Amount(i).to_percent(self.pot);
+            actions.push(AuctionPokerAction::Raise(CentiPercent(raise_percent)));
         }
 
         // See poker rules:
         // even if the maximum raise is lower than the minimum raise,
         // the player can still go all in
-        let all_in = self.stacks[player_num];
-        if all_in > 0
+        let current_stack = self.stacks[player_num];
+        if current_stack > 0
             && actions.len() == 0
             && self.stacks[player_num] <= self.stacks[player_num ^ 1]
         {
-            let percent = (all_in as f32 / self.pot as f32) * 100.0;
-            let rounded = percent.round() as u32;
-            actions.push(AuctionPokerAction::Raise(Amount(all_in)));
+            let raise_percent = Amount(current_stack + self.pips[player_num]).to_percent(self.pot);
+            actions.push(AuctionPokerAction::Raise(CentiPercent(raise_percent)));
         }
 
         if self.pips[player_num] == self.pips[player_num ^ 1] {
@@ -705,10 +809,14 @@ impl AuctionPokerState {
 
     fn auction_continue(&self) -> ActivePlayer<AuctionPokerAction> {
         let player0_bids = (0..=self.stacks[0])
-            .map(|x| AuctionPokerAction::Bid(x))
+            .map(|x| {
+                AuctionPokerAction::Bid(Amount(x))
+            })
             .collect::<Vec<_>>();
         let player1_bids = (0..=self.stacks[1])
-            .map(|x| AuctionPokerAction::Bid(x))
+            .map(|x| {
+                AuctionPokerAction::Bid(Amount(x))
+            })
             .collect::<Vec<_>>();
 
         match self.bids {
@@ -796,13 +904,11 @@ impl AuctionPokerState {
                 self.pot + (max_pip - self.pips[0]) + (max_pip - self.pips[1])
             }
             AuctionPokerAction::Fold => self.pot,
-            AuctionPokerAction::Raise(Amount(size)) => {
+            AuctionPokerAction::Raise(size) => {
+                let size = size.to_amount(self.pot);
                 let player_num = self.active_player().player_num();
                 let cost = size - self.pips[player_num];
                 self.pot + cost
-            }
-            AuctionPokerAction::Raise(Percent(_)) => {
-                panic!("Percent must be converted to amount to prevent rounding errors!")
             }
             AuctionPokerAction::Auction(winner) => match winner {
                 Winner::Player(player_num) => self.pot + self.bids[player_num ^ 1].unwrap(),
@@ -1031,13 +1137,6 @@ impl State<AuctionPokerAction> for AuctionPokerState {
 
                 // Opponent bet something - so this is a raise
                 if self.pips[player_num ^ 1] > 0 {
-                    // assert greater than opponent's bet
-                    debug_assert_eq!(amount > self.pips[player_num ^ 1], true);
-                    let cost = amount - self.pips[player_num ^ 1];
-                    if self.raise.is_some() {
-                        // assert greater than min raise
-                        debug_assert_eq!(cost >= self.raise.unwrap(), true);
-                    }
                     self.raise = Some(cost);
                 } else {
                     self.raise = None;
@@ -1050,9 +1149,10 @@ impl State<AuctionPokerAction> for AuctionPokerState {
                 self.active_player = self.action_end(player_num);
             }
 
-            AuctionPokerAction::Bid(usize) => {
+            AuctionPokerAction::Bid(size) => {
+                let bid = size.to_amount(self.pot);
                 let player_num = self.active_player().player_num();
-                self.bids[player_num] = Some(usize);
+                self.bids[player_num] = Some(bid);
                 self.active_player = self.auction_continue();
             }
 
@@ -1220,8 +1320,8 @@ mod tests {
         state.update(AuctionPokerAction::AuctionStart);
         println!("{:?}", state);
 
-        state.update(AuctionPokerAction::Bid(20));
-        state.update(AuctionPokerAction::Bid(20));
+        state.update(AuctionPokerAction::Bid(Amount(20)));
+        state.update(AuctionPokerAction::Bid(Amount(20)));
 
         assert_eq!(
             state
@@ -1292,14 +1392,16 @@ mod tests {
                         state.stacks[0]
                     );
                     assert_eq!(
-                        actions.contains(&AuctionPokerAction::Bid(i)),
+                        actions.contains(&AuctionPokerAction::Bid(Amount(i))),
                         true,
                         "Expected bid {} to be available",
                         i
                     );
                 }
                 assert_eq!(
-                    actions.contains(&AuctionPokerAction::Bid(351)),
+                    {
+                        actions.contains(&AuctionPokerAction::Bid(Amount(351)))
+                    },
                     false,
                     "Expected bid 351 onwards to be unavailable"
                 );
@@ -1307,7 +1409,7 @@ mod tests {
             x => panic!("Expected player transition. Got {:?}", x),
         }
 
-        state.update(AuctionPokerAction::Bid(100));
+        state.update(AuctionPokerAction::Bid(Amount(20)));
         match state.active_player() {
             ActivePlayer::Player(player, actions) => {
                 assert_eq!(player, 0);
@@ -1324,14 +1426,14 @@ mod tests {
                         state.stacks[1]
                     );
                     assert_eq!(
-                        actions.contains(&AuctionPokerAction::Bid(i)),
+                        actions.contains(&AuctionPokerAction::Bid(Amount(i))),
                         true,
                         "Expected bid {} to be available",
                         i
                     );
                 }
                 assert_eq!(
-                    actions.contains(&AuctionPokerAction::Bid(351)),
+                    actions.contains(&AuctionPokerAction::Bid(Amount(351))),
                     false,
                     "Expected bid 351 to be unavailable"
                 );
@@ -1340,7 +1442,7 @@ mod tests {
             x => panic!("Expected player transition. Got {:?}", x),
         }
 
-        state.update(AuctionPokerAction::Bid(300));
+        state.update(AuctionPokerAction::Bid(Amount(300)));
 
         // Player 0 should have won the auction
         assert_eq!(
@@ -1366,8 +1468,8 @@ mod tests {
         state.update(AuctionPokerAction::DealCommunity(6));
         state.update(AuctionPokerAction::DealCommunity(7));
         state.update(AuctionPokerAction::AuctionStart);
-        state.update(AuctionPokerAction::Bid(1));
-        state.update(AuctionPokerAction::Bid(0));
+        state.update(AuctionPokerAction::Bid(Amount(1)));
+        state.update(AuctionPokerAction::Bid(Amount(0)));
         assert!(state
             .active_player()
             .actions()
@@ -1467,8 +1569,8 @@ mod tests {
         state.update(AuctionPokerAction::AuctionStart);
 
         // Auction starts
-        state.update(AuctionPokerAction::Bid(25));
-        state.update(AuctionPokerAction::Bid(50));
+        state.update(AuctionPokerAction::Bid(Amount(25)));
+        state.update(AuctionPokerAction::Bid(Amount(50)));
 
         // Make sure that player 0 won!
         // pot = 18 + 25 = 43 (9 contributed by player 1)
@@ -1653,5 +1755,14 @@ mod tests {
         let card_interpreted = Card::from_index(Card::new(card_str).to_usize().unwrap());
         assert_eq!(card_interpreted, Card::new(card_str));
         assert_eq!(card_interpreted.to_string().unwrap(), card_str.to_owned());
+    }
+
+    #[test]
+    fn percent() {
+        let amount = Amount(100);
+        assert_eq!(1000, amount.to_percent(100));
+        assert_eq!(2000, amount.to_percent(50));
+        let percent = CentiPercent(1000);
+        assert_eq!(100, percent.to_amount(100));
     }
 }

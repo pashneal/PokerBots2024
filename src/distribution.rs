@@ -63,10 +63,21 @@ impl<T> Categorical<T> {
     pub fn new<IT: Into<Vec<T>>, IP: Into<Vec<f32>>>(probs: IP, items: IT) -> Self {
         let ps: Vec<f32> = probs.into();
         let is: Vec<T> = items.into();
-        assert_eq!(ps.len(), is.len());
+        debug_assert_eq!(ps.len(), is.len());
         debug_assert!((ps.iter().sum::<f32>() - 1.0) < 1e-3);
         let wi = WeightedIndex::new(&ps).expect("invalid distribution");
         Categorical(ps, wi, is)
+    }
+
+    pub fn with_mask(self, mask: &[bool]) -> Self {
+        debug_assert_eq!(mask.len(), self.0.len());
+        let ps: Vec<f32> = self
+            .0
+            .iter()
+            .zip(mask.iter())
+            .map(|(p, m)| if *m { *p } else { 0.0 })
+            .collect();
+        Self::new_normalized(ps, self.2)
     }
 
     /*

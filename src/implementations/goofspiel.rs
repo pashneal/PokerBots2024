@@ -205,8 +205,8 @@ impl State<GoofspielAction> for GoofspielState {
     fn update(&mut self, action: GoofspielAction) {
         match self.active_player() {
             ActivePlayer::Terminal(_) => panic!("Terminal state cannot be updated"),
-            ActivePlayer::Player(_, _) => self.player_update(action),
-            ActivePlayer::Chance(_) => self.chance_update(action),
+            ActivePlayer::Player(_, _) => self.player_update(action.clone()),
+            ActivePlayer::Chance(_) => self.chance_update(action.clone()),
             _ => panic!("Unsure how to handle this player"),
         }
     }

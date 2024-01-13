@@ -6,7 +6,7 @@ use crate::game_logic::strategy::*;
 use crate::{Categorical, Game};
 use rand::Rng;
 use serde_json::json;
-use std::collections::HashMap as SerializableHashMap;
+use std::collections::HashMap;
 use std::sync::Arc;
 
 #[derive(Clone, Debug)]
@@ -93,24 +93,38 @@ impl<A: Action, S: State<A>> MCCFR<A, S> {
                 let (action, default_index) = actions.sample_and_index(rng);
                 let default_index = default_index as ActionIndex;
                 let (action, index) = self.game_mapper.map_and_index(action, depth, default_index);
-                self.game.play(action);
+                self.game.play(&action);
                 self.run_averaging_iteration(rng, updated_player, depth + 1, q)
             }
             ActivePlayer::Marker(action) => {
-                self.game.play(action);
+                println!("Marker: {:?}", action);
+                self.game.play(&action);
                 self.run_averaging_iteration(rng, updated_player, depth + 1, q)
             }
 
             ActivePlayer::Player(player_num, actions) => {
                 let actions = self.game_mapper.map_actions(&actions, depth);
+                let max_index = A::max_index();
+
+                let mut mask = (0..max_index).map(|_| false).collect::<Vec<bool>>();
+                let mut mapped_actions = (0..max_index)
+                    .map(|_| None)
+                    .collect::<Vec<Option<A>>>(); 
+
+                for action in &actions {
+                    mask[action.index() as usize] = true;
+                    mapped_actions[action.index() as usize] = Some(action.clone());
+                }
+
                 let player_num = player_num as usize;
-                let length = actions.len() as f32;
+                let length = mask.len() as f32;
+
                 let history = self.game.history(player_num);
                 let strategy = &mut self.strategies[player_num];
 
                 let mut regrets = match strategy.regrets(&history) {
                     Some(r) => regret_matching(&r),
-                    None => vec![1.0 / length; actions.len()],
+                    None => vec![1.0 / length; length as usize],
                 };
 
                 if player_num != updated_player {
@@ -118,17 +132,21 @@ impl<A: Action, S: State<A>> MCCFR<A, S> {
                     // for not taking the action
                     regrets = regrets.iter().map(|r| r / q).collect();
                     strategy.update(history, None, Some(&regrets));
-                    let distribution = Categorical::new_normalized(regrets, actions);
+
+                    // Discard actions that aren't legal and renormalize
+                    let distribution = Categorical::new_normalized(regrets, mapped_actions);
+                    let distribution = distribution.with_mask(&mask);
                     let (sampled_action, index) = distribution.sample_and_index(rng);
 
+
                     // Sample and explore action (likelier to be one with higher regret)
-                    self.game.play(sampled_action);
+                    self.game.play(&sampled_action.unwrap());
                     return self.run_averaging_iteration(rng, updated_player, depth + 1, q);
                 }
 
                 // Sample the policy (strategy that we've been learning)
                 if strategy.policy(&history).is_none() {
-                    let zeroes = vec![0.0; actions.len()];
+                    let zeroes = vec![0.0; length as usize];
                     strategy.update(history.clone(), None, Some(&zeroes));
                 }
                 let policy = strategy.policy(&history).expect("Could not get policy");
@@ -140,11 +158,17 @@ impl<A: Action, S: State<A>> MCCFR<A, S> {
                 // Sample potentially many actions, and determine a
                 // counterfactual regret update for each
                 for (index, probability) in sampling_values.iter().enumerate() {
+                    if !mask[index] {
+                        regret_updates.push(0.0);
+                        continue;
+                    }
+
                     let will_sample = rng.gen_range(0.0, 1.0);
                     if will_sample < *probability {
                         // TODO: undo rather than clone
                         let temp_game = self.game.clone();
-                        self.game.play(actions[index].clone());
+                        let selected_action = mapped_actions[index].as_ref().unwrap();
+                        self.game.play(selected_action);
                         let value = self.run_averaging_iteration(
                             rng,
                             updated_player,
@@ -158,21 +182,20 @@ impl<A: Action, S: State<A>> MCCFR<A, S> {
                     }
                 }
 
-                // Estimate the true value of each action using the above samples
+                // Estimate the true value of each action using the sum of above samples
                 let counter_factual_estimation = regret_updates
                     .iter()
                     .zip(regrets.iter())
                     .map(|(a, b)| a * b)
                     .sum::<f32>();
 
-                // black magic ???
-                let full_update = regret_updates
+                let update_with_cfr = regret_updates
                     .iter()
                     .map(|a| a - counter_factual_estimation)
                     .collect::<Vec<f32>>();
 
                 let strategy = &mut self.strategies[player_num];
-                strategy.update(history, Some(&full_update), None);
+                strategy.update(history, Some(&update_with_cfr), None);
 
                 counter_factual_estimation
             }

@@ -4,7 +4,15 @@ use std::hash::Hash;
 pub use std::ops::RangeInclusive as StdRange;
 
 pub type ActionIndex = u8;
-pub trait Action: Clone + Debug + Filterable + Into<ActionIndex> + From<ActionIndex> {}
+pub trait Action: Clone + Debug + Filterable + Into<ActionIndex> + From<ActionIndex> {
+    fn max_index() -> ActionIndex {
+        std::u8::MAX
+    }
+
+    fn index(&self) -> ActionIndex {
+        unimplemented!()
+    }
+}
 
 pub type ActionFilter<A> = (Filter<A>, A);
 
@@ -143,24 +151,31 @@ impl<A: Filterable + Action> GameMapper<A> {
     }
 
     pub fn map_actions(&self, actions: &Vec<A>, depth: usize) -> Vec<A> {
-        // TODO: figure out what to do if functions map to two different groups
-        //       right now it's taking a greedy approach
-        // TODO: perhaps its a good precondition (checked by debug asserts)
-        //       to expect that for some action that is captured by a filter F
-        //       it maps to another action from the original legal set,
-        //       which is also captured by F, would enforce legality of actions
-        //       and consistency of groups implicitly
-        // TODO: bruh this doesn't reduce the action space lol
-        //
-        //
         let mapper = &self.depth_specific_maps[depth];
-        match mapper {
+        let mapped = match mapper {
             Some(mapper) => actions
                 .iter()
                 .map(|action| mapper.map(action.clone()))
                 .collect(),
             None => actions.clone(),
+        };
+
+        println!("mapped actions: {:?}", mapped);
+        // Group by action index while preserving order
+        let max = A::max_index();
+        let mut grouped: Vec<Vec<A>> = vec![vec![]; max as usize];
+        for action in mapped {
+            grouped[action.index() as usize].push(action);
         }
+        // Take the median action from each group if the group is non-empty
+        let mut median_actions: Vec<A> = vec![];
+        for group in grouped {
+            if group.len() > 0 {
+                let median_index = group.len() / 2;
+                median_actions.push(group[median_index].clone());
+            }
+        };
+        median_actions
     }
 
     pub fn encoding_size(&self) -> usize {
@@ -312,7 +327,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::implementations::auction::{AuctionPokerAction, RaiseSize};
+    use crate::implementations::auction::{AuctionPokerAction, RelativeSize};
     use std::collections::HashSet;
 
     #[test]
@@ -321,20 +336,20 @@ mod tests {
         // to the median of the inputs when there is no
         // custom ActionMapper provided
         //
-        // median here is a bit ill-defined for Fold, Call, Check
+        // median here is a bit ill-defined for Fold, Call, Check and even numbered groups
         // but useful in the context of
         // comparing Raise(x) vs Raise(y) where x != y
 
         let game_mapper: GameMapper<AuctionPokerAction> = GameMapper::new(None);
 
         use AuctionPokerAction::*;
-        use RaiseSize::*;
+        use RelativeSize::*;
         let actions = vec![
             Fold,
             Call,
-            Raise(Percent(50)),
-            Raise(Percent(100)),
-            Raise(Percent(150)),
+            Raise(CentiPercent(50)),
+            Raise(CentiPercent(100)),
+            Raise(CentiPercent(150)),
         ];
 
         // make sure this test is still valid (all actions map to distinct indices)
@@ -365,13 +380,13 @@ mod tests {
         // Make sure the test is still valid (certain actions map to equivalent indices)
         let action_group_1 = vec![Fold];
         let action_group_2 = vec![Call];
-        let action_group_3 = vec![Raise(Percent(50))];
-        let action_group_4 = vec![Raise(Percent(51)), Raise(Percent(52)), Raise(Percent(53))];
+        let action_group_3 = vec![Raise(CentiPercent(50))];
+        let action_group_4 = vec![Raise(CentiPercent(51)), Raise(CentiPercent(52)), Raise(CentiPercent(53))];
         let action_group_5 = vec![
-            Raise(Percent(101)),
-            Raise(Percent(102)),
-            Raise(Percent(103)),
-            Raise(Percent(104)),
+            Raise(CentiPercent(101)),
+            Raise(CentiPercent(102)),
+            Raise(CentiPercent(103)),
+            Raise(CentiPercent(104)),
         ];
 
         let groups = vec![
@@ -436,16 +451,16 @@ mod tests {
         let possible_mapping_1 = vec![
             Fold,
             Call,
-            Raise(Percent(50)),
-            Raise(Percent(52)),
-            Raise(Percent(102)),
+            Raise(CentiPercent(50)),
+            Raise(CentiPercent(52)),
+            Raise(CentiPercent(102)),
         ];
         let possible_mapping_2 = vec![
             Fold,
             Call,
-            Raise(Percent(50)),
-            Raise(Percent(52)),
-            Raise(Percent(103)),
+            Raise(CentiPercent(50)),
+            Raise(CentiPercent(52)),
+            Raise(CentiPercent(103)),
         ];
 
         // Convert to sets to make sure that the order doesn't matter
