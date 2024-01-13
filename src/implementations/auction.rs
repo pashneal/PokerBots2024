@@ -8,6 +8,31 @@ use rand::prelude::*;
 use std::cmp::Ordering;
 use std::time::{Duration, Instant};
 
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum RaiseSize{
+    Percent(u32),
+    Amount(u32),
+}
+use RaiseSize::*;
+
+impl RaiseSize{
+    pub fn to_percent(&self, pot :u32) -> u32 {
+        let size = match self{
+            Percent(p) => *p,
+            Amount(a) => (*a as f32 / pot as f32 * 100.0) as u32,
+        };
+        size
+    }
+
+    pub fn to_amount(&self, pot :u32) -> u32 {
+        let size = match self{
+            Percent(p) => (pot as f32 * (*p as f32 / 100.0)) as u32,
+            Amount(a) => *a,
+        };
+        size
+    }
+}
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Suit {
     Hearts,
@@ -288,7 +313,7 @@ pub enum AuctionPokerAction {
     Check,
     DealHole(CardIndex, usize), // Card dealt, player index
     DealCommunity(CardIndex),   // Deals a community card to the board
-    Raise(u32, u32),            // amount, nearest whole percent
+    Raise(RaiseSize),            
     Bid(u32),                   //  representing an auction size from one of the players
 
     ///////////////
@@ -319,15 +344,76 @@ impl Into<ActionIndex> for AuctionPokerAction {
             AuctionPokerAction::Fold => 0,
             AuctionPokerAction::Call => 1,
             AuctionPokerAction::Check => 2,
-            AuctionPokerAction::DealHole(_, _) => 3,
-            AuctionPokerAction::DealCommunity(_) => 4,
-            AuctionPokerAction::Raise(_, _) => 5,
-            AuctionPokerAction::Bid(_) => 6,
-            AuctionPokerAction::BettingRoundStart => 7,
-            AuctionPokerAction::BettingRoundEnd => 8,
-            AuctionPokerAction::AuctionStart => 9,
-            AuctionPokerAction::PlayerActionEnd(_) => 10,
-            AuctionPokerAction::Auction(_) => 11,
+
+            // We do a much smaller number of bet sizes 
+            AuctionPokerAction::Raise(Percent(size)) => {
+                match size {
+                    // Get really granular for the first several sizes of the pot 
+                    0..=5 => 3,
+                    6..=10 => 4,
+                    11..=15 => 5,
+                    16..=20 => 6,
+                    21..=25 => 7,
+                    26..=30 => 8,
+                    31..=35 => 9,
+                    36..=40 => 10,
+                    41..=45 => 11,
+                    46..=50 => 12,
+                    51..=55 => 13,
+                    56..=60 => 14,
+                    61..=65 => 15,
+                    66..=70 => 16,
+                    71..=75 => 17,
+                    76..=80 => 18,
+                    81..=85 => 19,
+                    86..=90 => 20,
+                    91..=95 => 21,
+                    96..=100 => 22,
+                    101..=105 => 23,
+                    106..=110 => 24,
+                    // Get less granular for the rest of the pot sizes
+                    111..=120 => 25,
+                    121..=150 => 26,
+                    151..=200 => 27,
+                    201..=250 => 28,
+                    251..=300 => 29,
+                    301..=350 => 30,
+                    351..=400 => 31,
+                    // Get wiggy with it
+                    401..=500 => 32,
+                    501..=600 => 33,
+                    601..=700 => 34,
+                    701..=900 => 35,
+                    901..=1000 => 36,
+                    // Okay, now we're just being silly
+                    1001..=1500 => 37,
+                    1501..=2500 => 38,
+                    2501..=5000 => 39,
+                    5001..=10000 => 40,
+                    // This is just ridiculous, but necessary to capture all-ins
+                    // (all ins on preflop are ~13300% of pot)
+                    10001..=100000 => 41,
+                    _ => panic!("Well this is awkward... the bet size is too large!"),
+
+                }
+
+            },
+
+            AuctionPokerAction::Raise(Amount(_)) => panic!("Cannot convert raise size (amount) to action index! Convert to percent first!"),
+
+            ///////////////////////
+            // These should not matter because they are just markers
+            // for the game state or performed by the Chance node
+            ///////////////////////
+
+            AuctionPokerAction::Bid(_) => 100,
+            AuctionPokerAction::Auction(_) => 100,
+            AuctionPokerAction::DealHole(_, _) => 100,
+            AuctionPokerAction::DealCommunity(_) => 100,
+            AuctionPokerAction::BettingRoundStart => 100,
+            AuctionPokerAction::BettingRoundEnd => 100,
+            AuctionPokerAction::AuctionStart => 100,
+            AuctionPokerAction::PlayerActionEnd(_) => 100,
         }
     }
 }
@@ -584,19 +670,12 @@ impl AuctionPokerState {
         };
 
         let mut actions = Vec::new();
-        let mut last_rounded = 0;
 
         // See variant rules: cannot raise more than either player's stack
         let max_raise = self.stacks[player_num].min(self.stacks[player_num ^ 1]);
 
         for i in min_raise..=max_raise {
-            let percent = (i as f32 / self.pot as f32) * 100.0;
-            let rounded = percent.round() as u32;
-            if rounded == last_rounded {
-                continue;
-            }
-            actions.push(AuctionPokerAction::Raise(i, rounded));
-            last_rounded = rounded;
+            actions.push(AuctionPokerAction::Raise(Amount(i)));
         }
 
         // See poker rules:
@@ -609,7 +688,7 @@ impl AuctionPokerState {
         {
             let percent = (all_in as f32 / self.pot as f32) * 100.0;
             let rounded = percent.round() as u32;
-            actions.push(AuctionPokerAction::Raise(all_in, rounded));
+            actions.push(AuctionPokerAction::Raise(Amount(all_in)));
         }
 
         if self.pips[player_num] == self.pips[player_num ^ 1] {
@@ -718,10 +797,13 @@ impl AuctionPokerState {
                 self.pot + (max_pip - self.pips[0]) + (max_pip - self.pips[1])
             }
             AuctionPokerAction::Fold => self.pot,
-            AuctionPokerAction::Raise(amount, _) => {
+            AuctionPokerAction::Raise(Amount(size)) => {
                 let player_num = self.active_player().player_num();
-                let cost = amount - self.pips[player_num];
+                let cost = size - self.pips[player_num];
                 self.pot + cost
+            }
+            AuctionPokerAction::Raise(Percent(_)) => {
+                panic!("Percent must be converted to amount to prevent rounding errors!")
             }
             AuctionPokerAction::Auction(winner) => match winner {
                 Winner::Player(player_num) => self.pot + self.bids[player_num ^ 1].unwrap(),
@@ -776,7 +858,7 @@ impl State<AuctionPokerAction> for AuctionPokerState {
             AuctionPokerAction::DealCommunity(_) => {
                 vec![Observation::Public(Information::Action(action.clone()))]
             }
-            AuctionPokerAction::Raise(_, _) => {
+            AuctionPokerAction::Raise(_) => {
                 // Don't really care what happens here
                 vec![Observation::Public(Information::Discard)]
             }
@@ -921,11 +1003,13 @@ impl State<AuctionPokerAction> for AuctionPokerState {
                 }
             }
 
-            AuctionPokerAction::Raise(amount, _) => {
+            AuctionPokerAction::Raise(size) => {
                 let player_num = self.active_player().player_num();
 
+                let amount = size.to_amount(self.pot);
+
                 let cost = amount - self.pips[player_num];
-                self.pot = self.new_pot_after(&AuctionPokerAction::Raise(amount, 0));
+                self.pot = self.new_pot_after(&AuctionPokerAction::Raise(Amount(amount)));
                 self.pips[player_num] += cost;
                 self.stacks[player_num] -= cost;
 
@@ -1120,7 +1204,7 @@ mod tests {
         state.update(AuctionPokerAction::DealHole(3, 1));
         state.update(AuctionPokerAction::DealHole(4, 1));
         state.update(AuctionPokerAction::BettingRoundStart);
-        state.update(AuctionPokerAction::Raise(4, 100));
+        state.update(AuctionPokerAction::Raise(Amount(4)));
         state.update(AuctionPokerAction::PlayerActionEnd(0));
         state.update(AuctionPokerAction::Call);
         state.update(AuctionPokerAction::BettingRoundEnd);
@@ -1154,13 +1238,13 @@ mod tests {
 
         // Betting round checks
         state.update(AuctionPokerAction::BettingRoundStart);
-        state.update(AuctionPokerAction::Raise(4, 100));
+        state.update(AuctionPokerAction::Raise(Amount(4)));
         assert!(state
             .active_player()
             .actions()
             .contains(&AuctionPokerAction::PlayerActionEnd(0)));
         state.update(AuctionPokerAction::PlayerActionEnd(0));
-        state.update(AuctionPokerAction::Raise(50, 100));
+        state.update(AuctionPokerAction::Raise(Amount(50)));
         assert!(state
             .active_player()
             .actions()
@@ -1341,7 +1425,7 @@ mod tests {
         state.update(AuctionPokerAction::BettingRoundStart);
 
         // First betting round (pre-flop)
-        state.update(AuctionPokerAction::Raise(9, 1337));
+        state.update(AuctionPokerAction::Raise(Amount(9)));
         // Make sure that we go to the PlayerActionEnd marker
         assert!(state
             .active_player()
@@ -1418,7 +1502,7 @@ mod tests {
                 .active_player()
                 .actions()
                 .iter()
-                .any(|x| matches!(x, AuctionPokerAction::Raise(_, _))),
+                .any(|x| matches!(x, AuctionPokerAction::Raise(_))),
             true
         );
         assert_eq!(state.active_player().player_num() == 1, true);
@@ -1466,7 +1550,7 @@ mod tests {
                 .active_player()
                 .actions()
                 .iter()
-                .any(|x| matches!(x, AuctionPokerAction::Raise(_, _))),
+                .any(|x| matches!(x, AuctionPokerAction::Raise(_))),
             true
         );
         assert_eq!(state.active_player().player_num() == 1, true);
@@ -1505,21 +1589,21 @@ mod tests {
                 .active_player()
                 .actions()
                 .iter()
-                .any(|x| matches!(x, AuctionPokerAction::Raise(_, _))),
+                .any(|x| matches!(x, AuctionPokerAction::Raise(__))),
             true
         );
         assert_eq!(state.active_player().player_num() == 1, true);
 
         // Add 2 more to the pot 
         // there's now 9 + 9 = 18 contribution in the pot for the losing player
-        state.update(AuctionPokerAction::Raise(2, 10));
+        state.update(AuctionPokerAction::Raise(Amount(2)));
         assert!(state
             .active_player()
             .actions()
             .iter()
             .all(|x| matches!(x, AuctionPokerAction::PlayerActionEnd(1))));
         state.update(AuctionPokerAction::PlayerActionEnd(1));
-        state.update(AuctionPokerAction::Raise(9, 101010));
+        state.update(AuctionPokerAction::Raise(Amount(9)));
         assert!(state
             .active_player()
             .actions()
