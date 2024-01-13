@@ -18,8 +18,8 @@ pub fn main() -> () {
     let g = Game::<AuctionPokerAction, AuctionPokerState>::new();
     let mut mcp = MCCFRParallel::<AuctionPokerAction, AuctionPokerState>::new(1);
     mcp.run_iterations(1, 0.01);
-    // TODO: current bug is that 
-    // strategies are imperfect and we need 
+    // TODO: current bug is that
+    // strategies are imperfect and we need
     // a why to get the best response
     //
 }

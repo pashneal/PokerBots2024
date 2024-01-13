@@ -8,11 +8,11 @@ pub enum ActivePlayer<A: Action> {
     Player(u32, Vec<A>), // Label (P1, P2, etc) and the possible actions they can take
     Chance(Categorical<A>), // A random event that can occur (for example, a card deal)
     Terminal(Vec<Utility>), // The game has ended, with an internal state representing the value
-                         // at this node. Do not be confused, this Vec<Utility> is used to
-                         // calculate a single utility value for each player, and does not
-                         // represent a choice of utilities
-    Marker(A)             // A node that just takes a single action, and updates the game 
-                         // history and state accordingly
+    // at this node. Do not be confused, this Vec<Utility> is used to
+    // calculate a single utility value for each player, and does not
+    // represent a choice of utilities
+    Marker(A), // A node that just takes a single action, and updates the game
+               // history and state accordingly
 }
 
 impl<A: Action> ActivePlayer<A> {

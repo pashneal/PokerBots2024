@@ -37,14 +37,14 @@ impl<A: Action> ActionMapper<A> {
 
     /// Map an action to a new action
     /// Precondition:
-    /// all actions must map to 
+    /// all actions must map to
     /// the same action index after filtering
     pub fn map(&self, action: A) -> A {
         for (filter, mapped_action) in &self.filters {
             if filter.accepts(&action) {
                 debug_assert!({
-                    let mapped_action_index : ActionIndex = mapped_action.clone().into();
-                    let action_index : ActionIndex = action.clone().into();
+                    let mapped_action_index: ActionIndex = mapped_action.clone().into();
+                    let action_index: ActionIndex = action.clone().into();
                     mapped_action_index == action_index
                 });
                 return mapped_action.clone();

@@ -135,7 +135,6 @@ impl<A: Action, S: State<A>> MCCFR<A, S> {
                 let sampling_values =
                     average_sampling(&policy, self.exploration, self.bonus, self.threshold);
 
-
                 let mut regret_updates: Vec<f32> = vec![];
 
                 // Sample potentially many actions, and determine a

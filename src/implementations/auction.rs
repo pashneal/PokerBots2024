@@ -8,25 +8,24 @@ use rand::prelude::*;
 use std::cmp::Ordering;
 use std::time::{Duration, Instant};
 
-
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum RaiseSize{
+pub enum RaiseSize {
     Percent(u32),
     Amount(u32),
 }
 use RaiseSize::*;
 
-impl RaiseSize{
-    pub fn to_percent(&self, pot :u32) -> u32 {
-        let size = match self{
+impl RaiseSize {
+    pub fn to_percent(&self, pot: u32) -> u32 {
+        let size = match self {
             Percent(p) => *p,
             Amount(a) => (*a as f32 / pot as f32 * 100.0) as u32,
         };
         size
     }
 
-    pub fn to_amount(&self, pot :u32) -> u32 {
-        let size = match self{
+    pub fn to_amount(&self, pot: u32) -> u32 {
+        let size = match self {
             Percent(p) => (pot as f32 * (*p as f32 / 100.0)) as u32,
             Amount(a) => *a,
         };
@@ -311,10 +310,11 @@ pub enum AuctionPokerAction {
     Fold,
     Call,
     Check,
+    Raise(RaiseSize),
+
+    Bid(u32),                   //  representing an auction size from one of the players
     DealHole(CardIndex, usize), // Card dealt, player index
     DealCommunity(CardIndex),   // Deals a community card to the board
-    Raise(RaiseSize),            
-    Bid(u32),                   //  representing an auction size from one of the players
 
     ///////////////
     // These are not really "actions" they don't change the game state
@@ -345,10 +345,10 @@ impl Into<ActionIndex> for AuctionPokerAction {
             AuctionPokerAction::Call => 1,
             AuctionPokerAction::Check => 2,
 
-            // We do a much smaller number of bet sizes 
+            // We do a much smaller number of bet sizes
             AuctionPokerAction::Raise(Percent(size)) => {
                 match size {
-                    // Get really granular for the first several sizes of the pot 
+                    // Get really granular for the first several sizes of the pot
                     0..=5 => 3,
                     6..=10 => 4,
                     11..=15 => 5,
@@ -394,18 +394,17 @@ impl Into<ActionIndex> for AuctionPokerAction {
                     // (all ins on preflop are ~13300% of pot)
                     10001..=100000 => 41,
                     _ => panic!("Well this is awkward... the bet size is too large!"),
-
                 }
+            }
 
-            },
-
-            AuctionPokerAction::Raise(Amount(_)) => panic!("Cannot convert raise size (amount) to action index! Convert to percent first!"),
+            AuctionPokerAction::Raise(Amount(_)) => panic!(
+                "Cannot convert raise size (amount) to action index! Convert to percent first!"
+            ),
 
             ///////////////////////
             // These should not matter because they are just markers
             // for the game state or performed by the Chance node
             ///////////////////////
-
             AuctionPokerAction::Bid(_) => 100,
             AuctionPokerAction::Auction(_) => 100,
             AuctionPokerAction::DealHole(_, _) => 100,
@@ -1015,8 +1014,15 @@ impl State<AuctionPokerAction> for AuctionPokerState {
 
                 println!("Betting round is {:?}", self.current_betting_round());
                 println!("Player {} raises to {}", player_num, amount);
-                println!("Player {} has {} chips left", player_num, self.stacks[player_num]);
-                println!("Player {} has {} chips left", player_num ^ 1, self.stacks[player_num ^ 1]);
+                println!(
+                    "Player {} has {} chips left",
+                    player_num, self.stacks[player_num]
+                );
+                println!(
+                    "Player {} has {} chips left",
+                    player_num ^ 1,
+                    self.stacks[player_num ^ 1]
+                );
                 println!("Pot is {}", self.pot);
                 println!("Pips are {:?}", self.pips);
                 println!("Raise is {:?}", self.raise);
@@ -1081,7 +1087,6 @@ impl State<AuctionPokerAction> for AuctionPokerState {
                     Round::PreFlop => self.active_player = self.betting_round(0),
                     _ => self.active_player = self.betting_round(1),
                 }
-
             }
             AuctionPokerAction::PlayerActionEnd(player_num) => {
                 // Always transition the the other player,
@@ -1095,7 +1100,7 @@ impl State<AuctionPokerAction> for AuctionPokerState {
                 // (deal community cards, deal hole cards, etc.)
                 // when the betting rounds end
                 self.raise = None;
-                self.pips = [0,0];
+                self.pips = [0, 0];
                 self.active_player = self.next_dealer()
             }
 
@@ -1594,7 +1599,7 @@ mod tests {
         );
         assert_eq!(state.active_player().player_num() == 1, true);
 
-        // Add 2 more to the pot 
+        // Add 2 more to the pot
         // there's now 9 + 9 = 18 contribution in the pot for the losing player
         state.update(AuctionPokerAction::Raise(Amount(2)));
         assert!(state
@@ -1620,7 +1625,11 @@ mod tests {
         assert!(matches!(state.active_player(), ActivePlayer::Terminal(_)));
         if let ActivePlayer::Terminal(deltas) = state.active_player() {
             assert!((deltas[0] - 18.0) < 0.00001); // Player 0 should get all the prize mulah
-            assert!((deltas[1] - -18.0) < 0.00001, "Player 1 should lose all the prize mulah {:?}", deltas);
+            assert!(
+                (deltas[1] - -18.0) < 0.00001,
+                "Player 1 should lose all the prize mulah {:?}",
+                deltas
+            );
         }
     }
 
@@ -1635,7 +1644,7 @@ mod tests {
     fn test_min_raise() {
         // Make sure that reraising works
         // TODO: will need to look up min raise rules for this
-        // TODO: especially because something seemed to have crashed within the Raise node 
+        // TODO: especially because something seemed to have crashed within the Raise node
     }
 
     #[test]
