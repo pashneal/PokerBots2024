@@ -634,8 +634,8 @@ impl AuctionPokerState {
             .collect::<Vec<_>>();
 
         match self.bids {
-            [None, None] => ActivePlayer::Player(0, player0_bids),
-            [Some(_), None] => ActivePlayer::Player(1, player1_bids),
+            [None, None] => ActivePlayer::Player(1, player0_bids),
+            [None, Some(_)] => ActivePlayer::Player(0, player1_bids),
             [Some(bid0), Some(bid1)] => {
                 let winner: Winner = if bid0 > bid1 {
                     Winner::Player(0)
@@ -888,8 +888,8 @@ impl State<AuctionPokerAction> for AuctionPokerState {
             AuctionPokerAction::Check => {
                 let player_num = self.active_player.player_num() as usize;
                 match player_num {
-                    0 => self.active_player = self.action_end(0),
-                    1 => self.active_player = self.betting_round_end(),
+                    1 => self.active_player = self.action_end(player_num),
+                    0 => self.active_player = self.betting_round_end(),
                     _ => panic!("Invalid player number"),
                 }
                 debug_assert_eq!(self.stacks[0] + self.stacks[1] + self.pot, 2 * STACK_SIZE);
@@ -991,8 +991,13 @@ impl State<AuctionPokerAction> for AuctionPokerState {
             }
 
             AuctionPokerAction::BettingRoundStart => {
-                // Always kick off the betting round with player 0!
-                self.active_player = self.betting_round(0);
+                // Kick off the betting round with player 0 in PreFlop
+                // and player 1 in Auction and onwards
+                match self.current_betting_round() {
+                    Round::PreFlop => self.active_player = self.betting_round(0),
+                    _ => self.active_player = self.betting_round(1),
+                }
+
             }
             AuctionPokerAction::PlayerActionEnd(player_num) => {
                 // Always transition the the other player,
@@ -1505,9 +1510,23 @@ mod tests {
         );
         assert_eq!(state.active_player().player_num() == 1, true);
 
-        state.update(AuctionPokerAction::Check);
+        // Add 2 more to the pot 
+        // there's now 9 + 9 = 18 contribution in the pot for the losing player
+        state.update(AuctionPokerAction::Raise(2, 10));
+        assert!(state
+            .active_player()
+            .actions()
+            .iter()
+            .all(|x| matches!(x, AuctionPokerAction::PlayerActionEnd(1))));
         state.update(AuctionPokerAction::PlayerActionEnd(1));
-        state.update(AuctionPokerAction::Check);
+        state.update(AuctionPokerAction::Raise(9, 101010));
+        assert!(state
+            .active_player()
+            .actions()
+            .iter()
+            .all(|x| matches!(x, AuctionPokerAction::PlayerActionEnd(0))));
+        state.update(AuctionPokerAction::PlayerActionEnd(0));
+        state.update(AuctionPokerAction::Call);
         assert!(state
             .active_player()
             .actions()
@@ -1516,8 +1535,8 @@ mod tests {
 
         assert!(matches!(state.active_player(), ActivePlayer::Terminal(_)));
         if let ActivePlayer::Terminal(deltas) = state.active_player() {
-            assert!((deltas[0] - 9.0) < 0.00001); // Player 0 should get all the prize mulah
-            assert!((deltas[1] - -9.0) < 0.00001);
+            assert!((deltas[0] - 18.0) < 0.00001); // Player 0 should get all the prize mulah
+            assert!((deltas[1] - -18.0) < 0.00001, "Player 1 should lose all the prize mulah {:?}", deltas);
         }
     }
 
