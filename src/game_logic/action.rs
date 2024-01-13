@@ -362,15 +362,25 @@ mod tests {
             "The mapped actions should be the same as the original actions"
         );
 
-
         // Make sure the test is still valid (certain actions map to equivalent indices)
         let action_group_1 = vec![Fold];
         let action_group_2 = vec![Call];
         let action_group_3 = vec![Raise(Percent(50))];
         let action_group_4 = vec![Raise(Percent(51)), Raise(Percent(52)), Raise(Percent(53))];
-        let action_group_5 = vec![Raise(Percent(101)), Raise(Percent(102)), Raise(Percent(103)), Raise(Percent(104))];
+        let action_group_5 = vec![
+            Raise(Percent(101)),
+            Raise(Percent(102)),
+            Raise(Percent(103)),
+            Raise(Percent(104)),
+        ];
 
-        let groups = vec![action_group_1.clone(), action_group_2.clone(), action_group_3.clone(), action_group_4.clone(), action_group_5.clone()];
+        let groups = vec![
+            action_group_1.clone(),
+            action_group_2.clone(),
+            action_group_3.clone(),
+            action_group_4.clone(),
+            action_group_5.clone(),
+        ];
 
         for group in groups.clone() {
             assert_eq!(
@@ -414,9 +424,13 @@ mod tests {
         actions.extend(action_group_5.clone());
 
         let mapped = game_mapper.map_actions(&actions, 0);
-        assert_eq!( 5, mapped.len(), "There should be 5 distinct action groups after mapping" );
+        assert_eq!(
+            5,
+            mapped.len(),
+            "There should be 5 distinct action groups after mapping"
+        );
 
-        // Because median is ill defined for even groups, 
+        // Because median is ill defined for even groups,
         // can be Raise(102) or Raise(103) for the test, test that
         // it's either
         let possible_mapping_1 = vec![
@@ -436,10 +450,11 @@ mod tests {
 
         // Convert to sets to make sure that the order doesn't matter
         assert!(
-            mapped.iter().collect::<HashSet<_>>() == possible_mapping_1.iter().collect::<HashSet<_>>() ||
-            mapped.iter().collect::<HashSet<_>>() == possible_mapping_2.iter().collect::<HashSet<_>>(),
+            mapped.iter().collect::<HashSet<_>>()
+                == possible_mapping_1.iter().collect::<HashSet<_>>()
+                || mapped.iter().collect::<HashSet<_>>()
+                    == possible_mapping_2.iter().collect::<HashSet<_>>(),
             "The mapped actions should be one of two possible mappings"
         );
-
     }
 }
