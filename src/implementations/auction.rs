@@ -1551,7 +1551,7 @@ mod tests {
     fn test_min_raise() {
         // Make sure that reraising works
         // TODO: will need to look up min raise rules for this
-        // TODO: especially because something seemed to have crashed whithin the Raise node 
+        // TODO: especially because something seemed to have crashed within the Raise node 
     }
 
     #[test]
