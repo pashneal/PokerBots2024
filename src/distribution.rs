@@ -64,19 +64,31 @@ impl<T> Categorical<T> {
         let ps: Vec<f32> = probs.into();
         let is: Vec<T> = items.into();
         debug_assert_eq!(ps.len(), is.len());
-        debug_assert!((ps.iter().sum::<f32>() - 1.0) < 1e-3);
-        let wi = WeightedIndex::new(&ps).expect("invalid distribution");
-        Categorical(ps, wi, is)
+        debug_assert!((ps.iter().sum::<f32>() - 1.0) < 1e-3, 
+                      "invalid distribution: {:?}", ps);
+        
+        let wi = WeightedIndex::new(&ps);
+
+        let w = match wi {
+            Err(w) => panic!("new categorical: {:?}", ps),
+            Ok(w) => w,
+        };
+        Categorical(ps, w, is)
     }
 
     pub fn with_mask(self, mask: &[bool]) -> Self {
         debug_assert_eq!(mask.len(), self.0.len());
-        let ps: Vec<f32> = self
+        let mut ps: Vec<f32> = self
             .0
             .iter()
             .zip(mask.iter())
             .map(|(p, m)| if *m { *p } else { 0.0 })
             .collect();
+        // If ps is all zeroes now
+        if ps.iter().all(|a| *a < 1e-3) {
+            //Uniform distribution over mask
+            ps = mask.iter().map(|m| if *m { 1.0 } else { 0.0 }).collect();
+        }
         Self::new_normalized(ps, self.2)
     }
 

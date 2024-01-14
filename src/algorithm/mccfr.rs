@@ -68,7 +68,7 @@ impl<A: Action, S: State<A>> MCCFR<A, S> {
                 self.run_averaging_iteration(rng, player, 0, 1.0);
             }
             self.iterations += 1;
-            if i % 100 == 0 {
+            if i % 1 == 0 {
                 println!(
                     "Iteration: {}, Nodes Traversed: {}, strategies[0] size: {}",
                     self.iterations,
@@ -86,10 +86,17 @@ impl<A: Action, S: State<A>> MCCFR<A, S> {
         depth: usize,
         q: f32, // Probability for bookkeeping a la AS MCCFR paper
     ) -> f32 {
-        self.nodes_traversed += 1;
+
         match self.game.active_player() {
-            ActivePlayer::Terminal(utilities) => utilities[updated_player] / q,
+            ActivePlayer::Terminal(utilities) => {
+                self.nodes_traversed += 1;
+                if self.nodes_traversed % 100000 == 0 {
+                    println!("Iteration: {}, Nodes Traversed: {}", self.iterations, self.nodes_traversed);
+                }
+                utilities[updated_player] / q
+            }
             ActivePlayer::Chance(actions) => {
+                self.nodes_traversed += 1;
                 let (action, default_index) = actions.sample_and_index(rng);
                 let default_index = default_index as ActionIndex;
                 let (action, index) = self.game_mapper.map_and_index(action, depth, default_index);
@@ -97,13 +104,17 @@ impl<A: Action, S: State<A>> MCCFR<A, S> {
                 self.run_averaging_iteration(rng, updated_player, depth + 1, q)
             }
             ActivePlayer::Marker(action) => {
-                println!("Marker: {:?}", action);
                 self.game.play(&action);
                 self.run_averaging_iteration(rng, updated_player, depth + 1, q)
             }
 
             ActivePlayer::Player(player_num, actions) => {
+                self.nodes_traversed += 1;
+                if self.nodes_traversed % 100000 == 0 {
+                    println!("Iteration: {}, Nodes Traversed: {}", self.iterations, self.nodes_traversed);
+                }
                 let actions = self.game_mapper.map_actions(&actions, depth);
+                assert!(actions.len() > 0);
                 let max_index = A::max_index();
 
                 let mut mask = (0..max_index).map(|_| false).collect::<Vec<bool>>();
@@ -135,6 +146,9 @@ impl<A: Action, S: State<A>> MCCFR<A, S> {
 
                     // Discard actions that aren't legal and renormalize
                     let distribution = Categorical::new_normalized(regrets, mapped_actions);
+                    debug_assert!(mask.iter().any(|a| *a));
+                    // TODO: it is possible that the mask removed all positive regrets
+                    // in which case we should just sample uniformly from the legal actions
                     let distribution = distribution.with_mask(&mask);
                     let (sampled_action, index) = distribution.sample_and_index(rng);
 

@@ -295,7 +295,11 @@ fn card_features(cards: &Vec<Card>) -> Vec<Feature> {
         .map(|card| card.value.to_usize().unwrap())
         .collect::<Vec<usize>>();
     value.sort();
-    let features = vec![Feature::Ranks(value[0], value[1]), Feature::Suited(suited)];
+    let features = vec![
+        Feature::Order(Round::PreFlop),
+        Feature::Ranks(value[0], value[1]), 
+        Feature::Suited(suited)
+    ];
     features
 }
 
@@ -590,11 +594,13 @@ impl AuctionPokerState {
         let pot = (pot * 100.0) as u8;
 
         let p0_features = vec![
+            Feature::Order(Round::Auction),
             Feature::EV(ev_loss0),
             Feature::EV(ev_win0),
             Feature::Pot(pot),
         ];
         let p1_features = vec![
+            Feature::Order(Round::Auction),
             Feature::EV(ev_loss1),
             Feature::EV(ev_win1),
             Feature::Pot(pot),
@@ -614,7 +620,6 @@ impl AuctionPokerState {
 
         let time = Instant::now();
         let ev = self.get_player_ev(&round, player_num);
-        println!("EV time: {:?}", time.elapsed());
 
         let ev = (ev * 100.0) as u16;
         let winner = match self.winner {
@@ -624,9 +629,9 @@ impl AuctionPokerState {
             None => panic!("There should be a winner by now!"),
         };
         let features = vec![
+            Feature::Order(round),
             Feature::EV(ev),
             Feature::Auction(winner),
-            Feature::Order(round),
         ];
         features
     }
@@ -1117,23 +1122,6 @@ impl State<AuctionPokerAction> for AuctionPokerState {
                 self.pot = self.new_pot_after(&AuctionPokerAction::Raise(Amount(amount)));
                 self.pips[player_num] += cost;
                 self.stacks[player_num] -= cost;
-
-                println!("Betting round is {:?}", self.current_betting_round());
-                println!("Player {} raises to {}", player_num, amount);
-                println!(
-                    "Player {} has {} chips left",
-                    player_num, self.stacks[player_num]
-                );
-                println!(
-                    "Player {} has {} chips left",
-                    player_num ^ 1,
-                    self.stacks[player_num ^ 1]
-                );
-                println!("Pot is {}", self.pot);
-                println!("Pips are {:?}", self.pips);
-                println!("Raise is {:?}", self.raise);
-                println!("Bid is {:?}", self.bids);
-                println!();
 
                 // Opponent bet something - so this is a raise
                 if self.pips[player_num ^ 1] > 0 {

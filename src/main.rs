@@ -15,11 +15,7 @@ use crate::implementations::auction::*;
 pub type Utility = f32;
 
 pub fn main() -> () {
-    let g = Game::<AuctionPokerAction, AuctionPokerState>::new();
-    let mut mcp = MCCFRParallel::<AuctionPokerAction, AuctionPokerState>::new(1);
-    mcp.run_iterations(1, 0.01);
-    // TODO: current bug is that
-    // strategies are imperfect and we need
-    // a why to get the best response
-    //
+    let mut mcp = MCCFRParallel::<AuctionPokerAction, AuctionPokerState>::new(11);
+    mcp.run_iterations(1100, 0.2);
+    mcp.write_to("auction_poker");
 }

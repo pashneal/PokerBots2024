@@ -160,7 +160,6 @@ impl<A: Filterable + Action> GameMapper<A> {
             None => actions.clone(),
         };
 
-        println!("mapped actions: {:?}", mapped);
         // Group by action index while preserving order
         let max = A::max_index();
         let mut grouped: Vec<Vec<A>> = vec![vec![]; max as usize];
