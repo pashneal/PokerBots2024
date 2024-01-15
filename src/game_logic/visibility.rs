@@ -7,11 +7,10 @@ use std::{fmt::Debug, hash::Hash};
 #[derive(Clone, Debug)]
 pub struct History(pub Vec<ActionIndex>);
 
-// TODO:  deal with greater than just 8 actions
 pub static MAX_ACTIONS: CondensedInfoSet = 200;
 impl History {
     pub fn into_condensed(self) -> CondensedInfoSet {
-        let mut condensed = 0;
+        let mut condensed = 1;
         for action in self.0.iter().rev() {
             condensed *= MAX_ACTIONS;
             condensed += *action as CondensedInfoSet;
@@ -24,7 +23,7 @@ impl From<CondensedInfoSet> for History {
     fn from(condensed: CondensedInfoSet) -> Self {
         let mut history = Vec::new();
         let mut condensed = condensed;
-        while condensed > 0 {
+        while condensed > 1 {
             history.push((condensed % MAX_ACTIONS) as ActionIndex);
             condensed /= MAX_ACTIONS;
         }
