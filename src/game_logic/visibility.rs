@@ -89,6 +89,7 @@ pub enum Feature {
     Order(Round),
     Auction(BidResult),
     Stack(u8), // Stack as percentage of max scaled down (0-50)
+    Aggression(usize),
 }
 
 impl Into<ActionIndex> for Feature {
@@ -107,6 +108,7 @@ impl Into<ActionIndex> for Feature {
                 BidResult::Tie => 2,
             },
             Feature::Stack(x) => x as ActionIndex,
+            Feature::Aggression(x) => x as ActionIndex,
         }
     }
 }

@@ -598,6 +598,7 @@ pub struct AuctionPokerState {
     active_player: ActivePlayer<AuctionPokerAction>,
     winner: Option<Winner>, // Winner of a bid
     cached_ev: [[Option<f32>; 2]; 5],
+    aggression : usize,
 }
 
 impl AuctionPokerState {
@@ -680,6 +681,7 @@ impl AuctionPokerState {
         let features = vec![
             Feature::Order(round),
             Feature::EV(ev),
+            Feature::Aggression(self.aggression),
             Feature::Auction(winner),
         ];
         features
@@ -858,6 +860,9 @@ impl AuctionPokerState {
             actions.push(AuctionPokerAction::Fold);
         }
 
+        if self.aggression == AGGRESSION_LIMIT {
+            actions  = actions.into_iter().filter(|action| !matches!(action ,AuctionPokerAction::Raise(_))).collect();
+        }
         ActivePlayer::Player(player_num as u32, actions)
     }
 
@@ -987,6 +992,7 @@ impl State<AuctionPokerAction> for AuctionPokerState {
             active_player: AuctionPokerState::initial_node(),
             winner: None,
             cached_ev: [[None, None]; 5],
+            aggression : 0,
         }
     }
 
@@ -1067,6 +1073,8 @@ impl State<AuctionPokerAction> for AuctionPokerState {
                         // (only cards + pot)
                         let mut features0 = card_features(&self.player_hands[0].cards());
                         let mut features1 = card_features(&self.player_hands[1].cards());
+                        features0.push(Feature::Aggression(self.aggression));
+                        features1.push(Feature::Aggression(self.aggression));
                         features0.push(Feature::Pot(scaled_pot));
                         features1.push(Feature::Pot(scaled_pot));
 
@@ -1182,6 +1190,7 @@ impl State<AuctionPokerAction> for AuctionPokerState {
                 // Sanity check pot amounts
                 debug_assert_eq!(self.stacks[0] + self.stacks[1] + self.pot, 2 * STACK_SIZE);
 
+                self.aggression += 1;
                 // End the action, but not the round
                 self.active_player = self.action_end(player_num);
             }
@@ -1220,6 +1229,7 @@ impl State<AuctionPokerAction> for AuctionPokerState {
             AuctionPokerAction::BettingRoundStart => {
                 // Kick off the betting round with player 0 in PreFlop
                 // and player 1 in Auction and onwards
+                self.aggression = 0;
                 match self.current_betting_round() {
                     Round::PreFlop => self.active_player = self.betting_round(0),
                     _ => self.active_player = self.betting_round(1),
@@ -1988,17 +1998,18 @@ mod tests {
         state.update(AuctionPokerAction::DealHole(4, 1));
         state.update(AuctionPokerAction::BettingRoundStart);
         state.update(AuctionPokerAction::Raise(Amount(10)));
-        state.update(AuctionPokerAction::PlayerActionEnd(1));
+        state.update(AuctionPokerAction::PlayerActionEnd(0));
+        // TODO: tests are wrong, should be DeciPercent
         assert!(!state
             .active_player()
             .actions()
             .iter()
-            .any(|x| matches!(x, AuctionPokerAction::Raise(Amount(19)))));
+            .any(|x| matches!(x, AuctionPokerAction::Raise(Amount(17)))));
         assert!(state
             .active_player()
             .actions()
             .iter()
-            .any(|x| matches!(x, AuctionPokerAction::Raise(Amount(20)))));
+            .any(|x| matches!(x, AuctionPokerAction::Raise(Amount(18)))));
         state.update(AuctionPokerAction::Raise(Amount(100)));
         state.update(AuctionPokerAction::PlayerActionEnd(0));
         assert!(!state
@@ -2057,6 +2068,42 @@ mod tests {
             .active_player()
             .actions()
             .contains( &AuctionPokerAction::Call));
+    }
+    #[test]
+    fn test_cannot_raise_more_than_aggression_limit() {
+        let mut state = AuctionPokerState::new();
+        state.update(AuctionPokerAction::DealHole(0, 0));
+        state.update(AuctionPokerAction::DealHole(2, 0));
+        state.update(AuctionPokerAction::DealHole(3, 1));
+        state.update(AuctionPokerAction::DealHole(4, 1));
+        state.update(AuctionPokerAction::BettingRoundStart);
+
+        assert_eq!(AGGRESSION_LIMIT, 6, "Test is invalid");
+
+        state.update(AuctionPokerAction::Raise(Amount(10)));
+        state.update(AuctionPokerAction::PlayerActionEnd(0));
+        state.update(AuctionPokerAction::Raise(Amount(20)));
+        state.update(AuctionPokerAction::PlayerActionEnd(1));
+        state.update(AuctionPokerAction::Raise(Amount(30)));
+        state.update(AuctionPokerAction::PlayerActionEnd(0));
+        state.update(AuctionPokerAction::Raise(Amount(40)));
+        state.update(AuctionPokerAction::PlayerActionEnd(1));
+        state.update(AuctionPokerAction::Raise(Amount(50)));
+        state.update(AuctionPokerAction::PlayerActionEnd(0));
+        assert!(state
+            .active_player()
+            .actions()
+            .iter()
+            .any(|x| matches!(x, AuctionPokerAction::Raise(_))));
+        state.update(AuctionPokerAction::Raise(Amount(60)));
+        state.update(AuctionPokerAction::PlayerActionEnd(1));
+
+        assert!(!state
+            .active_player()
+            .actions()
+            .iter()
+            .any(|x| matches!(x, AuctionPokerAction::Raise(_))));
+
     }
 
     #[test]
