@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use crate::game_logic::visibility::History;
-use crate::implementations::auction::AuctionPokerAction;
-use crate::game_logic::action::ActionIndex;
+use crate::implementations::auction::*;
+use crate::game_logic::action::*;
 
 use crate::game_logic::strategy::CondensedInfoSet;
 use crate::game_logic::strategy::PolicyDistribution;
@@ -71,6 +71,9 @@ pub fn analyze_policy(info_set: CondensedInfoSet , policy : &PolicyDistribution)
     
     let history : History  = info_set.into();
     let ev = history.0[1];
+    if history.0.len() <6 || ev != 70{
+        return;
+    }
     let v : Vec<f32> = policy.into_iter().map(|x| if *x < 0.02 { 0.0 } else { *x }).collect();
     println!("{:?}",history);
     println!("{:?}", v);
@@ -169,12 +172,55 @@ impl BlueprintStrategy {
             policies.push(policy);
         }
         println!("Time to convert {:?}", time.elapsed());
-        policies[1].iter().for_each(|(info_set, policy)| {
-            //println!("{} {:?}", info_set, decompress_policy(policy));
-            analyze_policy(*info_set , &decompress_policy(policy));
-        });
         BlueprintStrategy {
             policies,
+        }
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    pub fn test_model_knows_when_to_fold() {
+        // Assumes that there is a model named "auction_poker.bp" in the current directory
+        let strategy = BlueprintStrategy::load_bincode("auction_poker.bp");
+
+        for policy in strategy.policies {
+            for (info_set, policy) in policy.iter() {
+                let decompressed = decompress_policy(policy);
+                let history : History = (*info_set).into();
+                let round = history.0[0];
+                let ev = history.0[1];
+
+                // Only look at flop
+                if round != 2 {
+                    continue;
+                }
+                if ev > 5 {
+                    continue;
+                }
+                let fold_freq = decompressed[AuctionPokerAction::Fold.index() as usize];
+                assert!( fold_freq > 0.50,
+                        "Model should fold with higher frequency (at flop) when EV is very low Found a fold frequency of {}", fold_freq)
+            }
+            for (info_set, policy) in policy.iter() {
+                let decompressed = decompress_policy(policy);
+                let history : History = (*info_set).into();
+                let round = history.0[0];
+                // Only look at the river
+                if round != 4 {
+                    continue;
+                }
+                let ev = history.0[1];
+                if ev != 100 {
+                    continue;
+                }
+                let fold_freq = decompressed[AuctionPokerAction::Fold.index() as usize];
+                assert!(fold_freq < 0.05,
+                        "Model should fold with very low frequency (at river) when EV is very low, Found a fold frequency of {}", fold_freq);
+            }
         }
     }
 }

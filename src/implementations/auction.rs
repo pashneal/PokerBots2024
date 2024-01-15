@@ -852,7 +852,7 @@ impl AuctionPokerState {
             // Nobody raised, so we can check
             actions.push(AuctionPokerAction::Check);
         } else {
-            // We can always call if the stacks are unequal
+            // We can always call if the pips are unequal
             // (by virtue of never being able to raise more than the smaller stack)
             actions.push(AuctionPokerAction::Call);
             actions.push(AuctionPokerAction::Fold);
@@ -1493,6 +1493,36 @@ mod tests {
     }
 
     #[test]
+    fn test_can_fold_on_flop() {
+        let mut state = AuctionPokerState::new();
+        state.update(AuctionPokerAction::DealHole(0, 0));
+        state.update(AuctionPokerAction::DealHole(2, 0));
+        state.update(AuctionPokerAction::DealHole(3, 1));
+        state.update(AuctionPokerAction::DealHole(4, 1));
+        state.update(AuctionPokerAction::BettingRoundStart);
+        state.update(AuctionPokerAction::Call);
+        state.update(AuctionPokerAction::BettingRoundEnd);
+        state.update(AuctionPokerAction::DealCommunity(5));
+        state.update(AuctionPokerAction::DealCommunity(6));
+        state.update(AuctionPokerAction::DealCommunity(7));
+        state.update(AuctionPokerAction::AuctionStart);
+        state.update(AuctionPokerAction::Bid(Amount(1)));
+        state.update(AuctionPokerAction::Bid(Amount(0)));
+        assert!(state
+            .active_player()
+            .actions()
+            .contains(&AuctionPokerAction::Auction(Winner::Player(1))));
+        state.update(AuctionPokerAction::Auction(Winner::Player(1)));
+        state.update(AuctionPokerAction::DealHole(8, 1));
+        state.update(AuctionPokerAction::BettingRoundStart);
+        state.update(AuctionPokerAction::Raise(Amount(10)));
+        assert!(state
+            .active_player()
+            .actions()
+            .contains(&AuctionPokerAction::Fold));
+    }
+
+    #[test]
     fn test_flop_check_check() {
         let mut state = AuctionPokerState::new();
         state.update(AuctionPokerAction::DealHole(0, 0));
@@ -1774,10 +1804,21 @@ mod tests {
     }
 
     #[test]
+    fn test_can_fold_on_turn() {
+        unimplemented!();
+    }
+
+    #[test]
+    fn test_can_fold_on_river() {
+        unimplemented!();
+    }
+
+    #[test]
     fn test_all_in() {
         // Make sure that all-in works especially when there are asymmetric
         // contributions to the stack
         // TODO : definitely need to test this
+        unimplemented!();  
     }
 
     #[test]
@@ -1785,6 +1826,13 @@ mod tests {
         // Make sure that reraising works
         // TODO: will need to look up min raise rules for this
         // TODO: especially because something seemed to have crashed within the Raise node
+        unimplemented!();
+    }
+
+    #[test]
+    fn test_can_always_call_a_legal_raise() {
+        // can always call a raise on turn river or flop
+        unimplemented!();
     }
 
     #[test]
