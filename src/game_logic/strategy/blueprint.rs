@@ -187,6 +187,21 @@ mod tests {
         // Assumes that there is a model named "auction_poker.bp" in the current directory
         let strategy = BlueprintStrategy::load_bincode("auction_poker.bp");
 
+        let mut folded = 0;
+        for policy in strategy.policies.clone() {
+            for (info_set, policy) in policy.iter() {
+                let decompressed = decompress_policy(policy);
+                let history : History = (*info_set).into();
+                let round = history.0[0];
+                if round > 1 {
+                    let fold_freq = decompressed[AuctionPokerAction::Fold.index() as usize];
+                    if fold_freq > 0.50 {
+                        folded += 1;
+                    }
+                }
+            }
+        }
+        assert!(folded > 0 , "There should be at least some nodes with high folding frequency");
         for policy in strategy.policies {
             for (info_set, policy) in policy.iter() {
                 let decompressed = decompress_policy(policy);

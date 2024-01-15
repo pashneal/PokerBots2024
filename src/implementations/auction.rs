@@ -1492,35 +1492,6 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_can_fold_on_flop() {
-        let mut state = AuctionPokerState::new();
-        state.update(AuctionPokerAction::DealHole(0, 0));
-        state.update(AuctionPokerAction::DealHole(2, 0));
-        state.update(AuctionPokerAction::DealHole(3, 1));
-        state.update(AuctionPokerAction::DealHole(4, 1));
-        state.update(AuctionPokerAction::BettingRoundStart);
-        state.update(AuctionPokerAction::Call);
-        state.update(AuctionPokerAction::BettingRoundEnd);
-        state.update(AuctionPokerAction::DealCommunity(5));
-        state.update(AuctionPokerAction::DealCommunity(6));
-        state.update(AuctionPokerAction::DealCommunity(7));
-        state.update(AuctionPokerAction::AuctionStart);
-        state.update(AuctionPokerAction::Bid(Amount(1)));
-        state.update(AuctionPokerAction::Bid(Amount(0)));
-        assert!(state
-            .active_player()
-            .actions()
-            .contains(&AuctionPokerAction::Auction(Winner::Player(1))));
-        state.update(AuctionPokerAction::Auction(Winner::Player(1)));
-        state.update(AuctionPokerAction::DealHole(8, 1));
-        state.update(AuctionPokerAction::BettingRoundStart);
-        state.update(AuctionPokerAction::Raise(Amount(10)));
-        assert!(state
-            .active_player()
-            .actions()
-            .contains(&AuctionPokerAction::Fold));
-    }
 
     #[test]
     fn test_flop_check_check() {
@@ -1804,35 +1775,323 @@ mod tests {
     }
 
     #[test]
+    fn test_can_fold_on_preflop_raise() {
+        let mut state = AuctionPokerState::new();
+        state.update(AuctionPokerAction::DealHole(0, 0));
+        state.update(AuctionPokerAction::DealHole(2, 0));
+        state.update(AuctionPokerAction::DealHole(3, 1));
+        state.update(AuctionPokerAction::DealHole(4, 1));
+        state.update(AuctionPokerAction::BettingRoundStart);
+        state.update(AuctionPokerAction::Raise(Amount(3)));
+        state.update(AuctionPokerAction::PlayerActionEnd(0));
+        assert!(state
+            .active_player()
+            .actions()
+            .contains(&AuctionPokerAction::Fold));
+    }
+
+    #[test]
+    fn test_can_fold_on_flop() {
+        let mut state = AuctionPokerState::new();
+        state.update(AuctionPokerAction::DealHole(0, 0));
+        state.update(AuctionPokerAction::DealHole(2, 0));
+        state.update(AuctionPokerAction::DealHole(3, 1));
+        state.update(AuctionPokerAction::DealHole(4, 1));
+        state.update(AuctionPokerAction::BettingRoundStart);
+        state.update(AuctionPokerAction::Call);
+        state.update(AuctionPokerAction::BettingRoundEnd);
+        state.update(AuctionPokerAction::DealCommunity(5));
+        state.update(AuctionPokerAction::DealCommunity(6));
+        state.update(AuctionPokerAction::DealCommunity(7));
+        state.update(AuctionPokerAction::AuctionStart);
+        state.update(AuctionPokerAction::Bid(Amount(1)));
+        state.update(AuctionPokerAction::Bid(Amount(0)));
+        assert!(state
+            .active_player()
+            .actions()
+            .contains(&AuctionPokerAction::Auction(Winner::Player(1))));
+        state.update(AuctionPokerAction::Auction(Winner::Player(1)));
+        state.update(AuctionPokerAction::DealHole(8, 1));
+        state.update(AuctionPokerAction::BettingRoundStart);
+        state.update(AuctionPokerAction::Raise(Amount(10)));
+        state.update(AuctionPokerAction::PlayerActionEnd(1));
+        assert!(state
+            .active_player()
+            .actions()
+            .contains(&AuctionPokerAction::Fold));
+    }
+
+    #[test]
     fn test_can_fold_on_turn() {
-        unimplemented!();
+        let mut state = AuctionPokerState::new();
+        state.update(AuctionPokerAction::DealHole(0, 0));
+        state.update(AuctionPokerAction::DealHole(2, 0));
+        state.update(AuctionPokerAction::DealHole(3, 1));
+        state.update(AuctionPokerAction::DealHole(4, 1));
+        state.update(AuctionPokerAction::BettingRoundStart);
+        state.update(AuctionPokerAction::Call);
+        state.update(AuctionPokerAction::BettingRoundEnd);
+        state.update(AuctionPokerAction::DealCommunity(5));
+        state.update(AuctionPokerAction::DealCommunity(6));
+        state.update(AuctionPokerAction::DealCommunity(7));
+        state.update(AuctionPokerAction::AuctionStart);
+        state.update(AuctionPokerAction::Bid(Amount(1)));
+        state.update(AuctionPokerAction::Bid(Amount(0)));
+        assert!(state
+            .active_player()
+            .actions()
+            .contains(&AuctionPokerAction::Auction(Winner::Player(1))));
+        state.update(AuctionPokerAction::Auction(Winner::Player(1)));
+        state.update(AuctionPokerAction::DealHole(8, 1));
+        state.update(AuctionPokerAction::BettingRoundStart);
+        state.update(AuctionPokerAction::Raise(Amount(10)));
+        state.update(AuctionPokerAction::PlayerActionEnd(1));
+        state.update(AuctionPokerAction::Call);
+        state.update(AuctionPokerAction::BettingRoundEnd);
+        state.update(AuctionPokerAction::DealCommunity(32));
+        state.update(AuctionPokerAction::BettingRoundStart);
+        state.update(AuctionPokerAction::Raise(Amount(10)));
+        state.update(AuctionPokerAction::PlayerActionEnd(1));
+        state.update(AuctionPokerAction::Raise(Amount(100)));
+        state.update(AuctionPokerAction::PlayerActionEnd(0));
+        assert!(state
+            .active_player()
+            .actions()
+            .contains(&AuctionPokerAction::Fold));
     }
 
     #[test]
     fn test_can_fold_on_river() {
-        unimplemented!();
+        let mut state = AuctionPokerState::new();
+        state.update(AuctionPokerAction::DealHole(0, 0));
+        state.update(AuctionPokerAction::DealHole(2, 0));
+        state.update(AuctionPokerAction::DealHole(3, 1));
+        state.update(AuctionPokerAction::DealHole(4, 1));
+        state.update(AuctionPokerAction::BettingRoundStart);
+        state.update(AuctionPokerAction::Call);
+        state.update(AuctionPokerAction::BettingRoundEnd);
+        state.update(AuctionPokerAction::DealCommunity(5));
+        state.update(AuctionPokerAction::DealCommunity(6));
+        state.update(AuctionPokerAction::DealCommunity(7));
+        state.update(AuctionPokerAction::AuctionStart);
+        state.update(AuctionPokerAction::Bid(Amount(1)));
+        state.update(AuctionPokerAction::Bid(Amount(0)));
+        assert!(state
+            .active_player()
+            .actions()
+            .contains(&AuctionPokerAction::Auction(Winner::Player(1))));
+        state.update(AuctionPokerAction::Auction(Winner::Player(1)));
+        state.update(AuctionPokerAction::DealHole(8, 1));
+        state.update(AuctionPokerAction::BettingRoundStart);
+        state.update(AuctionPokerAction::Raise(Amount(10)));
+        state.update(AuctionPokerAction::PlayerActionEnd(1));
+        state.update(AuctionPokerAction::Call);
+        state.update(AuctionPokerAction::BettingRoundEnd);
+        state.update(AuctionPokerAction::DealCommunity(32));
+        state.update(AuctionPokerAction::BettingRoundStart);
+        state.update(AuctionPokerAction::Raise(Amount(10)));
+        state.update(AuctionPokerAction::PlayerActionEnd(1));
+        state.update(AuctionPokerAction::Raise(Amount(100)));
+        state.update(AuctionPokerAction::PlayerActionEnd(0));
+        assert!(state
+            .active_player()
+            .actions()
+            .contains(&AuctionPokerAction::Fold));
+        state.update(AuctionPokerAction::Call);
+        state.update(AuctionPokerAction::BettingRoundEnd);
+        state.update(AuctionPokerAction::DealCommunity(30));
+        state.update(AuctionPokerAction::BettingRoundStart);
+        state.update(AuctionPokerAction::Raise(Amount(10)));
+        state.update(AuctionPokerAction::PlayerActionEnd(1));
+        assert!(state
+            .active_player()
+            .actions()
+            .contains(&AuctionPokerAction::Fold));
+        
     }
 
     #[test]
     fn test_all_in() {
         // Make sure that all-in works especially when there are asymmetric
         // contributions to the stack
-        // TODO : definitely need to test this
-        unimplemented!();  
+        let mut state = AuctionPokerState::new();
+        state.update(AuctionPokerAction::DealHole(0, 0));
+        state.update(AuctionPokerAction::DealHole(2, 0));
+        state.update(AuctionPokerAction::DealHole(3, 1));
+        state.update(AuctionPokerAction::DealHole(4, 1));
+        state.update(AuctionPokerAction::BettingRoundStart);
+        state.update(AuctionPokerAction::Call);
+        // pot is 4
+        state.update(AuctionPokerAction::BettingRoundEnd);
+        state.update(AuctionPokerAction::DealCommunity(5));
+        state.update(AuctionPokerAction::DealCommunity(6));
+        state.update(AuctionPokerAction::DealCommunity(7));
+        state.update(AuctionPokerAction::AuctionStart);
+        state.update(AuctionPokerAction::Bid(Amount(200)));
+        state.update(AuctionPokerAction::Bid(Amount(100)));
+        state.update(AuctionPokerAction::Auction(Winner::Player(1)));
+        state.update(AuctionPokerAction::DealHole(8, 1));
+        // pot is 104 with player 1 having 102 contributed
+        // so player 1 stack is 400 - 102 = 298
+        state.update(AuctionPokerAction::BettingRoundStart);
+        state.update(AuctionPokerAction::Raise(Amount(10)));
+        state.update(AuctionPokerAction::PlayerActionEnd(1));
+        state.update(AuctionPokerAction::Raise(Amount(100))); // p1 raises 90 more
+        state.update(AuctionPokerAction::PlayerActionEnd(0));
+        state.update(AuctionPokerAction::Raise(Amount(200))); // p0 raises 100 more
+        state.update(AuctionPokerAction::PlayerActionEnd(1));
+        assert!(state
+            .active_player()
+            .actions()
+            .contains(&AuctionPokerAction::Raise(Amount(298)))); // p1 should be able to
+                                                              //// raise all in even though
+                                                              //// they don't have enough
+                                                              //// to match p0's raise
+        // BUT there should be no other raise sizes
+        assert!(!state
+            .active_player()
+            .actions()
+            .iter()
+            .filter(|x| matches!(x, AuctionPokerAction::Raise(_)))
+            .any(|x| x != &AuctionPokerAction::Raise(Amount(298))));
+
+        state.update(AuctionPokerAction::Raise(Amount(298))); 
+    }
+
+    #[test]
+    fn test_re_raise_preflop() {
+        let mut state = AuctionPokerState::new();
+        state.update(AuctionPokerAction::DealHole(0, 0));
+        state.update(AuctionPokerAction::DealHole(2, 0));
+        state.update(AuctionPokerAction::DealHole(3, 1));
+        state.update(AuctionPokerAction::DealHole(4, 1));
+        state.update(AuctionPokerAction::BettingRoundStart);
+        state.update(AuctionPokerAction::Raise(Amount(10)));
+        state.update(AuctionPokerAction::PlayerActionEnd(1));
+        state.update(AuctionPokerAction::Raise(Amount(100)));
+        state.update(AuctionPokerAction::PlayerActionEnd(0));
+        // Can still raise after raising
+        assert!(state
+            .active_player()
+            .actions()
+            .iter()
+            .any(|x| matches!(x, AuctionPokerAction::Raise(_))));
+        state.update(AuctionPokerAction::Raise(Amount(200)));
     }
 
     #[test]
     fn test_min_raise() {
-        // Make sure that reraising works
-        // TODO: will need to look up min raise rules for this
-        // TODO: especially because something seemed to have crashed within the Raise node
-        unimplemented!();
+        let mut state = AuctionPokerState::new();
+        state.update(AuctionPokerAction::DealHole(0, 0));
+        state.update(AuctionPokerAction::DealHole(2, 0));
+        state.update(AuctionPokerAction::DealHole(3, 1));
+        state.update(AuctionPokerAction::DealHole(4, 1));
+        state.update(AuctionPokerAction::BettingRoundStart);
+        state.update(AuctionPokerAction::Raise(Amount(10)));
+        state.update(AuctionPokerAction::PlayerActionEnd(1));
+        assert!(!state
+            .active_player()
+            .actions()
+            .iter()
+            .any(|x| matches!(x, AuctionPokerAction::Raise(Amount(19)))));
+        assert!(state
+            .active_player()
+            .actions()
+            .iter()
+            .any(|x| matches!(x, AuctionPokerAction::Raise(Amount(20)))));
+        state.update(AuctionPokerAction::Raise(Amount(100)));
+        state.update(AuctionPokerAction::PlayerActionEnd(0));
+        assert!(!state
+            .active_player()
+            .actions()
+            .iter()
+            .any(|x| matches!(x, AuctionPokerAction::Raise(Amount(189)))));
+        assert!(state
+            .active_player()
+            .actions()
+            .iter()
+            .any(|x| matches!(x, AuctionPokerAction::Raise(Amount(190)))));
+        // Can still raise after raising
+        assert!(state
+            .active_player()
+            .actions()
+            .iter()
+            .any(|x| matches!(x, AuctionPokerAction::Raise(_))));
+        state.update(AuctionPokerAction::Raise(Amount(200)));
+        state.update(AuctionPokerAction::PlayerActionEnd(1));
+        assert!(!state
+            .active_player()
+            .actions()
+            .iter()
+            .any(|x| matches!(x, AuctionPokerAction::Raise(Amount(299)))));
+        assert!(!state
+            .active_player()
+            .actions()
+            .iter()
+            .any(|x| matches!(x, AuctionPokerAction::Raise(Amount(300)))));
     }
 
     #[test]
     fn test_can_always_call_a_legal_raise() {
-        // can always call a raise on turn river or flop
-        unimplemented!();
+        let mut state = AuctionPokerState::new();
+        state.update(AuctionPokerAction::DealHole(0, 0));
+        state.update(AuctionPokerAction::DealHole(2, 0));
+        state.update(AuctionPokerAction::DealHole(3, 1));
+        state.update(AuctionPokerAction::DealHole(4, 1));
+        state.update(AuctionPokerAction::BettingRoundStart);
+        state.update(AuctionPokerAction::Raise(Amount(10)));
+        state.update(AuctionPokerAction::PlayerActionEnd(1));
+        assert!(state
+            .active_player()
+            .actions()
+            .contains( &AuctionPokerAction::Call));
+        state.update(AuctionPokerAction::Raise(Amount(100)));
+        state.update(AuctionPokerAction::PlayerActionEnd(0));
+        assert!(state
+            .active_player()
+            .actions()
+            .contains( &AuctionPokerAction::Call));
+        state.update(AuctionPokerAction::Raise(Amount(200)));
+        state.update(AuctionPokerAction::PlayerActionEnd(1));
+        assert!(state
+            .active_player()
+            .actions()
+            .contains( &AuctionPokerAction::Call));
+    }
+
+    #[test]
+    fn test_cannot_raise_at_0_stack() {
+        let mut state = AuctionPokerState::new();
+        state.update(AuctionPokerAction::DealHole(0, 0));
+        state.update(AuctionPokerAction::DealHole(2, 0));
+        state.update(AuctionPokerAction::DealHole(3, 1));
+        state.update(AuctionPokerAction::DealHole(4, 1));
+        state.update(AuctionPokerAction::BettingRoundStart);
+        state.update(AuctionPokerAction::Call);
+
+        state.update(AuctionPokerAction::DealCommunity(5));
+        state.update(AuctionPokerAction::DealCommunity(6));
+        state.update(AuctionPokerAction::DealCommunity(7));
+        state.update(AuctionPokerAction::AuctionStart);
+        state.update(AuctionPokerAction::Bid(Amount(398)));
+        state.update(AuctionPokerAction::Bid(Amount(397)));
+        state.update(AuctionPokerAction::Auction(Winner::Player(1)));
+        state.update(AuctionPokerAction::DealHole(8, 1));
+
+        state.update(AuctionPokerAction::BettingRoundStart);
+        state.update(AuctionPokerAction::Raise(Amount(1)));
+        state.update(AuctionPokerAction::PlayerActionEnd(1));
+        state.update(AuctionPokerAction::Call);
+        state.update(AuctionPokerAction::PlayerActionEnd(0));
+        state.update(AuctionPokerAction::BettingRoundEnd);
+
+        state.update(AuctionPokerAction::DealCommunity(9));
+        state.update(AuctionPokerAction::BettingRoundStart);
+        assert!(state
+            .active_player()
+            .actions()
+            .iter()
+            .all(|x| !matches!(x, AuctionPokerAction::Raise(_))));
     }
 
     #[test]
