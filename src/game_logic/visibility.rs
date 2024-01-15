@@ -23,6 +23,7 @@ impl From<CondensedInfoSet> for History {
     fn from(condensed: CondensedInfoSet) -> Self {
         let mut history = Vec::new();
         let mut condensed = condensed;
+        //while condensed > 0 {
         while condensed > 1 {
             history.push((condensed % MAX_ACTIONS) as ActionIndex);
             condensed /= MAX_ACTIONS;

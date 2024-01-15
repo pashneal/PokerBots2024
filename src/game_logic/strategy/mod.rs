@@ -5,7 +5,7 @@ pub use blueprint::*;
 
 use dashmap::DashMap;
 
-pub type CondensedInfoSet = u128;
+pub type CondensedInfoSet = u64;
 pub type PolicyDistribution = Vec<f32>;
 pub type RegretDistribution = Vec<f32>;
 pub type PolicyMap = DashMap<CondensedInfoSet, PolicyDistribution>;

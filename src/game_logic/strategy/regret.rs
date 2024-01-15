@@ -60,9 +60,6 @@ impl RegretStrategy {
                 continue;
             }
             // Optimization: If there is only one choice in the strategy, don't add it to the table
-            if strategy.len() == 1 {
-                continue;
-            }
             let strategy = normalized(strategy.clone());
             table.push((information_set.clone(), strategy.clone()));
         }

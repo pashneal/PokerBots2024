@@ -10,7 +10,7 @@ pub trait Action: Clone + Debug + Filterable + Into<ActionIndex> + From<ActionIn
     }
 
     fn index(&self) -> ActionIndex {
-        unimplemented!()
+        self.clone().into()
     }
 }
 
@@ -346,9 +346,9 @@ mod tests {
         let actions = vec![
             Fold,
             Call,
-            Raise(CentiPercent(50)),
-            Raise(CentiPercent(100)),
-            Raise(CentiPercent(150)),
+            Raise(DeciPercent(50)),
+            Raise(DeciPercent(100)),
+            Raise(DeciPercent(150)),
         ];
 
         // make sure this test is still valid (all actions map to distinct indices)
@@ -379,13 +379,13 @@ mod tests {
         // Make sure the test is still valid (certain actions map to equivalent indices)
         let action_group_1 = vec![Fold];
         let action_group_2 = vec![Call];
-        let action_group_3 = vec![Raise(CentiPercent(50))];
-        let action_group_4 = vec![Raise(CentiPercent(51)), Raise(CentiPercent(52)), Raise(CentiPercent(53))];
+        let action_group_3 = vec![Raise(DeciPercent(50))];
+        let action_group_4 = vec![Raise(DeciPercent(51)), Raise(DeciPercent(52)), Raise(DeciPercent(53))];
         let action_group_5 = vec![
-            Raise(CentiPercent(101)),
-            Raise(CentiPercent(102)),
-            Raise(CentiPercent(103)),
-            Raise(CentiPercent(104)),
+            Raise(DeciPercent(101)),
+            Raise(DeciPercent(102)),
+            Raise(DeciPercent(103)),
+            Raise(DeciPercent(104)),
         ];
 
         let groups = vec![
@@ -450,16 +450,16 @@ mod tests {
         let possible_mapping_1 = vec![
             Fold,
             Call,
-            Raise(CentiPercent(50)),
-            Raise(CentiPercent(52)),
-            Raise(CentiPercent(102)),
+            Raise(DeciPercent(50)),
+            Raise(DeciPercent(52)),
+            Raise(DeciPercent(102)),
         ];
         let possible_mapping_2 = vec![
             Fold,
             Call,
-            Raise(CentiPercent(50)),
-            Raise(CentiPercent(52)),
-            Raise(CentiPercent(103)),
+            Raise(DeciPercent(50)),
+            Raise(DeciPercent(52)),
+            Raise(DeciPercent(103)),
         ];
 
         // Convert to sets to make sure that the order doesn't matter

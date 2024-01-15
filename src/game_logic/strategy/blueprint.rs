@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use crate::game_logic::visibility::History;
 use crate::implementations::auction::AuctionPokerAction;
 use crate::game_logic::action::ActionIndex;
 
@@ -27,25 +28,26 @@ const ARRAY_SIZE : usize =  MAX_POLICY_LENGTH / MAX_FIT;
 type CondensedPolicyDistribution = [u128; ARRAY_SIZE];
 
 pub fn compress(value : f32) -> u128 {
-    let max_value = (1 << MAX_VALUE_SIZE_BITS) - 1;
-    let result = (value * max_value as f32) as u128;
+    let result = (value * 999.0) as u128;
     result
 }
 
 pub fn decompress(value : u128) -> f32 {
-    let max_value = (1 << MAX_VALUE_SIZE_BITS) - 1;
-    let result = value as f32 / max_value as f32;
+    let max_value = 999.0;
+    let result = value as f32 / max_value; 
     result
 }
 
 pub fn compress_policy(policy : &PolicyDistribution) -> CondensedPolicyDistribution {
     let mut result = [0; ARRAY_SIZE];
     for (i, chunks) in policy.chunks(MAX_FIT).enumerate() {
-        // Change the chunks from (0.0 to 1.0) to (0 to 2^MAX_VALUE_SIZE_BITS)
-        let compressed_chunk = chunks.iter().fold(0, |compressed, &value| { 
-            compressed * (1 << MAX_VALUE_SIZE_BITS) + compress(value)
-        });
-        result[i] = compressed_chunk;
+        let mut total = 0;
+        for (j, &value) in chunks.iter().rev().enumerate() {
+            let value = compress(value);
+            total *= 1000;
+            total += value;
+        }
+        result[i] = total;
     }
     result
 }
@@ -55,27 +57,38 @@ pub fn decompress_policy(policy : &CondensedPolicyDistribution) -> PolicyDistrib
     for &chunk in policy.iter() {
         let mut chunk = chunk;
         for _ in 0..MAX_FIT {
-            let value = chunk % (1 << MAX_VALUE_SIZE_BITS);
-            chunk = chunk / (1 << MAX_VALUE_SIZE_BITS);
+            let value = chunk % 1000;
+            chunk = chunk / 1000;
             result.push(decompress(value));
         }
     }
     result
 }
 
-pub fn analyze_policy(policy : &PolicyDistribution) {
-    for (i, &value) in policy.iter().enumerate() {
+pub fn analyze_policy(info_set: CondensedInfoSet , policy : &PolicyDistribution) {
+
+    //TODO: need 
+    
+    let history : History  = info_set.into();
+    let ev = history.0[1];
+    let v : Vec<f32> = policy.into_iter().map(|x| if *x < 0.02 { 0.0 } else { *x }).collect();
+    println!("{:?}",history);
+    println!("{:?}", v);
+    for (i, &value) in v.iter().enumerate() {
         let i : AuctionPokerAction  = (i as ActionIndex).into();
         if value > 1e-3 {
-            println!("{:?}: {:?}", i, value);
+            print!("{:?}: {:?} \n", i, value);
         }
     }
+    println!();
+
 }
 
 #[derive(Clone, Debug)]
 pub struct BlueprintStrategy {
-    policies : Vec<BTreeMap<CondensedInfoSet, CondensedPolicyDistribution>>,
-}
+    policies : Vec<BTreeMap<CondensedInfoSet, CondensedPolicyDistribution>>, }
+//pub fn uncondense_info_set(info_set : &CondensedInfoSet) -> Vec<u8> {
+//}
 
 #[derive(Deserialize)]
 #[serde(transparent)]
@@ -156,9 +169,9 @@ impl BlueprintStrategy {
             policies.push(policy);
         }
         println!("Time to convert {:?}", time.elapsed());
-        policies[0].iter().take(2).for_each(|(info_set, policy)| {
-            println!("{} {:?}", info_set, decompress_policy(policy));
-            analyze_policy(&decompress_policy(policy));
+        policies[1].iter().for_each(|(info_set, policy)| {
+            //println!("{} {:?}", info_set, decompress_policy(policy));
+            analyze_policy(*info_set , &decompress_policy(policy));
         });
         BlueprintStrategy {
             policies,

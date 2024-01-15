@@ -10,7 +10,7 @@ use std::time::{Duration, Instant};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum RelativeSize {
-    CentiPercent(u32),
+    DeciPercent(u32),
     Amount(u32),
 }
 use RelativeSize::*;
@@ -18,15 +18,15 @@ use RelativeSize::*;
 impl RelativeSize {
     pub fn to_percent(&self, pot: u32) -> u32 {
         let size = match self {
-            CentiPercent(p) => *p,
-            Amount(a) => (*a as f32 / pot as f32 * 1000.0).round() as u32,
+            DeciPercent(p) => *p,
+            Amount(a) => ((*a as f32 / pot as f32) * 1000.0).round() as u32,
         };
         size
     }
 
     pub fn to_amount(&self, pot: u32) -> u32 {
         let size = match self {
-            CentiPercent(p) => (pot as f32 * (*p as f32 / 1000.0)).round() as u32,
+            DeciPercent(p) => (pot as f32 * (*p as f32 / 1000.0)).round() as u32,
             Amount(a) => *a,
         };
         size
@@ -350,53 +350,60 @@ impl Into<ActionIndex> for AuctionPokerAction {
             AuctionPokerAction::Check => 2,
 
             // We do a much smaller number of bet sizes
-            AuctionPokerAction::Raise(CentiPercent(size)) => {
+            AuctionPokerAction::Raise(DeciPercent(size)) => {
                 match size {
-                    // Get really granular for the first several sizes of the pot
+                    // SMALL ABSTRACTION SPACE SO WE CAN TEST
+                    // WHETHER THE ABSTRACTION IS WORKING
                     0..=50 => 3,
                     ..=100 => 4,
-                    ..=150 => 5,
-                    ..=200 => 6,
-                    ..=250 => 7,
-                    ..=300 => 8,
-                    ..=350 => 9,
-                    ..=400 => 10,
-                    ..=450 => 11,
-                    ..=500 => 12,
-                    ..=550 => 13,
-                    ..=600 => 14,
-                    ..=650 => 15,
-                    ..=700 => 16,
-                    ..=750 => 17,
-                    ..=800 => 18,
-                    ..=850 => 19,
-                    ..=900 => 20,
-                    ..=950 => 21,
-                    ..=1000 => 22,
-                    ..=1050 => 23,
-                    ..=1100 => 24,
-                    // Get less granular for the rest of the pot sizes
-                    ..=1200 => 25,
-                    ..=1500 => 26,
-                    ..=2000 => 27,
-                    ..=2500 => 28,
-                    ..=3000 => 29,
-                    ..=3500 => 30,
-                    ..=4000 => 31,
-                    // Get wiggy with it
-                    ..=5000 => 32,
-                    ..=6000 => 33,
-                    ..=7000 => 34,
-                    ..=9000 => 35,
-                    ..=10000 => 36,
-                    // Okay, now we're just being silly
-                    ..=15000 => 37,
-                    ..=25000 => 38,
-                    ..=50000 => 39,
-                    ..=100000 => 40,
-                    // This is just ridiculous, but necessary to capture all-ins
-                    // (all ins on preflop are ~13300% of pot)
-                    ..=1000000 => 41,
+                    ..=500 => 5,
+                    ..=1000000 => 6,
+                    // LARGE ABSTRACTIONS
+                    //// Get really granular for the first several sizes of the pot
+                    //0..=50 => 3,
+                    //..=100 => 4,
+                    //..=150 => 5,
+                    //..=200 => 6,
+                    //..=250 => 7,
+                    //..=300 => 8,
+                    //..=350 => 9,
+                    //..=400 => 10,
+                    //..=450 => 11,
+                    //..=500 => 12,
+                    //..=550 => 13,
+                    //..=600 => 14,
+                    //..=650 => 15,
+                    //..=700 => 16,
+                    //..=750 => 17,
+                    //..=800 => 18,
+                    //..=850 => 19,
+                    //..=900 => 20,
+                    //..=950 => 21,
+                    //..=1000 => 22,
+                    //..=1050 => 23,
+                    //..=1100 => 24,
+                    //// Get less granular for the rest of the pot sizes
+                    //..=1200 => 25,
+                    //..=1500 => 26,
+                    //..=2000 => 27,
+                    //..=2500 => 28,
+                    //..=3000 => 29,
+                    //..=3500 => 30,
+                    //..=4000 => 31,
+                    //// Get wiggy with it
+                    //..=5000 => 32,
+                    //..=6000 => 33,
+                    //..=7000 => 34,
+                    //..=9000 => 35,
+                    //..=10000 => 36,
+                    //// Okay, now we're just being silly
+                    //..=15000 => 37,
+                    //..=25000 => 38,
+                    //..=50000 => 39,
+                    //..=100000 => 40,
+                    //// This is just ridiculous, but necessary to capture all-ins
+                    //// (all ins on preflop are ~13300% of pot)
+                    //..=1000000 => 41,
                     _ => panic!("Well this is awkward... the bet size is too large!"),
                 }
             }
@@ -452,7 +459,7 @@ impl Into<ActionIndex> for AuctionPokerAction {
                 _ => panic!("Well this is awkward... the bid size is too large!"),
             }}
 
-            AuctionPokerAction::Bid(CentiPercent(_)) => panic!(
+            AuctionPokerAction::Bid(DeciPercent(_)) => panic!(
                 "Cannot convert bid size (percent) to action index! Convert to amount first!"
             ),
 
@@ -477,50 +484,50 @@ impl From<ActionIndex> for AuctionPokerAction {
             0 => AuctionPokerAction::Fold,
             1 => AuctionPokerAction::Call,
             2 => AuctionPokerAction::Check,
-            3 => AuctionPokerAction::Raise(CentiPercent(30)),
-            4 => AuctionPokerAction::Raise(CentiPercent(80)),
-            5 => AuctionPokerAction::Raise(CentiPercent(130)),
-            6 => AuctionPokerAction::Raise(CentiPercent(180)),
-            7 => AuctionPokerAction::Raise(CentiPercent(230)),
-            8 => AuctionPokerAction::Raise(CentiPercent(280)),
-            9 => AuctionPokerAction::Raise(CentiPercent(330)),
-            10 => AuctionPokerAction::Raise(CentiPercent(380)),
-            11 => AuctionPokerAction::Raise(CentiPercent(430)),
-            12 => AuctionPokerAction::Raise(CentiPercent(480)),
-            13 => AuctionPokerAction::Raise(CentiPercent(530)),
-            14 => AuctionPokerAction::Raise(CentiPercent(580)),
-            15 => AuctionPokerAction::Raise(CentiPercent(630)),
-            16 => AuctionPokerAction::Raise(CentiPercent(680)),
-            17 => AuctionPokerAction::Raise(CentiPercent(730)),
-            18 => AuctionPokerAction::Raise(CentiPercent(780)),
-            19 => AuctionPokerAction::Raise(CentiPercent(830)),
-            20 => AuctionPokerAction::Raise(CentiPercent(880)),
-            21 => AuctionPokerAction::Raise(CentiPercent(930)),
-            22 => AuctionPokerAction::Raise(CentiPercent(980)),
-            23 => AuctionPokerAction::Raise(CentiPercent(1030)),
-            24 => AuctionPokerAction::Raise(CentiPercent(1080)),
+            3 => AuctionPokerAction::Raise(DeciPercent(30)),
+            4 => AuctionPokerAction::Raise(DeciPercent(80)),
+            5 => AuctionPokerAction::Raise(DeciPercent(130)),
+            6 => AuctionPokerAction::Raise(DeciPercent(180)),
+            7 => AuctionPokerAction::Raise(DeciPercent(230)),
+            8 => AuctionPokerAction::Raise(DeciPercent(280)),
+            9 => AuctionPokerAction::Raise(DeciPercent(330)),
+            10 => AuctionPokerAction::Raise(DeciPercent(380)),
+            11 => AuctionPokerAction::Raise(DeciPercent(430)),
+            12 => AuctionPokerAction::Raise(DeciPercent(480)),
+            13 => AuctionPokerAction::Raise(DeciPercent(530)),
+            14 => AuctionPokerAction::Raise(DeciPercent(580)),
+            15 => AuctionPokerAction::Raise(DeciPercent(630)),
+            16 => AuctionPokerAction::Raise(DeciPercent(680)),
+            17 => AuctionPokerAction::Raise(DeciPercent(730)),
+            18 => AuctionPokerAction::Raise(DeciPercent(780)),
+            19 => AuctionPokerAction::Raise(DeciPercent(830)),
+            20 => AuctionPokerAction::Raise(DeciPercent(880)),
+            21 => AuctionPokerAction::Raise(DeciPercent(930)),
+            22 => AuctionPokerAction::Raise(DeciPercent(980)),
+            23 => AuctionPokerAction::Raise(DeciPercent(1030)),
+            24 => AuctionPokerAction::Raise(DeciPercent(1080)),
             // Get less granular for the rest of the pot sizes
-            25 => AuctionPokerAction::Raise(CentiPercent(1160)),
-            26 => AuctionPokerAction::Raise(CentiPercent(1360)),
-            27 => AuctionPokerAction::Raise(CentiPercent(1750)),
-            28 => AuctionPokerAction::Raise(CentiPercent(2250)),
-            29 => AuctionPokerAction::Raise(CentiPercent(2750)),
-            30 => AuctionPokerAction::Raise(CentiPercent(3250)),
-            31 => AuctionPokerAction::Raise(CentiPercent(3750)),
+            25 => AuctionPokerAction::Raise(DeciPercent(1160)),
+            26 => AuctionPokerAction::Raise(DeciPercent(1360)),
+            27 => AuctionPokerAction::Raise(DeciPercent(1750)),
+            28 => AuctionPokerAction::Raise(DeciPercent(2250)),
+            29 => AuctionPokerAction::Raise(DeciPercent(2750)),
+            30 => AuctionPokerAction::Raise(DeciPercent(3250)),
+            31 => AuctionPokerAction::Raise(DeciPercent(3750)),
             // Get wiggy with it
-            32 => AuctionPokerAction::Raise(CentiPercent(4500)),
-            33 => AuctionPokerAction::Raise(CentiPercent(5500)),
-            34 => AuctionPokerAction::Raise(CentiPercent(6500)),
-            35 => AuctionPokerAction::Raise(CentiPercent(8000)),
-            36 => AuctionPokerAction::Raise(CentiPercent(9500)),
+            32 => AuctionPokerAction::Raise(DeciPercent(4500)),
+            33 => AuctionPokerAction::Raise(DeciPercent(5500)),
+            34 => AuctionPokerAction::Raise(DeciPercent(6500)),
+            35 => AuctionPokerAction::Raise(DeciPercent(8000)),
+            36 => AuctionPokerAction::Raise(DeciPercent(9500)),
             // Okay, now we're just being silly
-            37 => AuctionPokerAction::Raise(CentiPercent(12500)),
-            38 => AuctionPokerAction::Raise(CentiPercent(20000)),
-            39 => AuctionPokerAction::Raise(CentiPercent(37500)),
-            40 => AuctionPokerAction::Raise(CentiPercent(75000)),
+            37 => AuctionPokerAction::Raise(DeciPercent(12500)),
+            38 => AuctionPokerAction::Raise(DeciPercent(20000)),
+            39 => AuctionPokerAction::Raise(DeciPercent(37500)),
+            40 => AuctionPokerAction::Raise(DeciPercent(75000)),
             // This is just ridiculous, but necessary to capture all-ins
             // (all ins on preflop are ~13300% of pot0)
-            41 => AuctionPokerAction::Raise(CentiPercent(500000)),
+            41 => AuctionPokerAction::Raise(DeciPercent(500000)),
             42 => AuctionPokerAction::Bid(Amount(0)),
             43 => AuctionPokerAction::Bid(Amount(5)),
             44 => AuctionPokerAction::Bid(Amount(15)),
@@ -826,7 +833,7 @@ impl AuctionPokerState {
 
         for i in min_raise..=max_raise {
             let raise_percent = Amount(i).to_percent(self.pot);
-            actions.push(AuctionPokerAction::Raise(CentiPercent(raise_percent)));
+            actions.push(AuctionPokerAction::Raise(DeciPercent(raise_percent)));
         }
 
         // See poker rules:
@@ -838,7 +845,7 @@ impl AuctionPokerState {
             && self.stacks[player_num] <= self.stacks[player_num ^ 1]
         {
             let raise_percent = Amount(current_stack + self.pips[player_num]).to_percent(self.pot);
-            actions.push(AuctionPokerAction::Raise(CentiPercent(raise_percent)));
+            actions.push(AuctionPokerAction::Raise(DeciPercent(raise_percent)));
         }
 
         if self.pips[player_num] == self.pips[player_num ^ 1] {
@@ -1231,7 +1238,8 @@ impl State<AuctionPokerAction> for AuctionPokerState {
                 // when the betting rounds end
                 self.raise = None;
                 self.pips = [0, 0];
-                self.active_player = self.next_dealer()
+                self.active_player = self.next_dealer();
+                assert_eq!(self.stacks[0] + self.stacks[1] + self.pot, 2 * STACK_SIZE);
             }
 
             AuctionPokerAction::AuctionStart => {
@@ -1792,7 +1800,8 @@ mod tests {
         let amount = Amount(100);
         assert_eq!(1000, amount.to_percent(100));
         assert_eq!(2000, amount.to_percent(50));
-        let percent = CentiPercent(1000);
+        let percent = DeciPercent(1000);
         assert_eq!(100, percent.to_amount(100));
+        assert_eq!(50 , DeciPercent(Amount(50).to_percent(50)).to_amount(50));
     }
 }
