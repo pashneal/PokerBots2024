@@ -59,7 +59,7 @@ impl RegretStrategy {
             if strategy.iter().all(|&x| x < 0.0001) {
                 continue;
             }
-            // Optimization: If there is only one choice in the strategy, don't add it to the table
+
             let strategy = normalized(strategy.clone());
             table.push((information_set.clone(), strategy.clone()));
         }

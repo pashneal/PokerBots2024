@@ -355,12 +355,23 @@ impl Into<ActionIndex> for AuctionPokerAction {
                     // SMALL ABSTRACTION SPACE SO WE CAN TEST
                     // WHETHER THE ABSTRACTION IS WORKING
                     0..=500 => 3,
-                    ..=1000 => 4,
-                    ..=1500 => 5,
-                    ..=2000 => 6,
-                    ..=5000 => 7,
-                    ..=10000 => 8,
-                    ..=1000000 => 9,
+                    ..=600 => 4,
+                    ..=750 => 5,
+                    ..=1000 => 6,
+                    ..=1250 => 7,
+                    ..=1500 => 8,
+                    ..=1750 => 9,
+                    ..=2000 => 10,
+                    ..=3000 => 11,
+                    ..=4000 => 12,
+                    ..=5000 => 13,
+                    ..=10000 => 14,
+                    ..=20000 => 15,
+                    ..=30000 => 16,
+                    ..=40000 => 17,
+                    ..=50000 => 18,
+                    ..=75000 => 19,
+                    ..=1000000 => 20,
                     // LARGE ABSTRACTIONS
                     //// Get really granular for the first several sizes of the pot
                     //0..=50 => 3,
@@ -418,12 +429,23 @@ impl Into<ActionIndex> for AuctionPokerAction {
             ),
 
             AuctionPokerAction::Bid(Amount(x)) => { match x {
-                0..=10 => 7,
-                0..=20 => 8,
-                1..=30 => 9,
-                2..=40 => 10,
-                3..=50 => 11,
-                ..=400 => 12,
+                ..=10 => 21,
+                ..=20 => 22,
+                ..=30 => 23,
+                ..=40 => 24,
+                ..=50 => 25,
+                ..=60 => 26,
+                ..=70 => 27,
+                ..=80 => 27,
+                ..=90 => 28,
+                ..=110 => 29,
+                ..=133 => 30,
+                ..=150 => 31,
+                ..=186 => 32,
+                ..=195 => 33,
+                ..=230 => 34,
+                ..=356 => 35,
+                ..=400 => 36,
                 //0 => 42,
                 //1..=10 => 43,
                 //11..=20 => 44,
@@ -644,13 +666,13 @@ impl AuctionPokerState {
 
         // ALWAYS truncate, it would be very bad
         // to think that we have the nuts when we don't
-        let ev_win0 = (ev_win0 * 100.0) as u16;
-        let ev_win1 = (ev_win1 * 100.0) as u16;
-        let ev_loss0 = (ev_loss0 * 100.0) as u16;
-        let ev_loss1 = (ev_loss1 * 100.0) as u16;
+        let ev_win0 = (ev_win0 * 30.0) as u16;
+        let ev_win1 = (ev_win1 * 30.0) as u16;
+        let ev_loss0 = (ev_loss0 * 30.0) as u16;
+        let ev_loss1 = (ev_loss1 * 30.0) as u16;
 
         let pot = self.pot as f32 / MAX_POT as f32;
-        let pot = (pot * 100.0) as u8;
+        let pot = (pot * 20.0) as u8;
 
         let p0_features = vec![
             Feature::Order(Round::Auction),
@@ -680,7 +702,7 @@ impl AuctionPokerState {
         let time = Instant::now();
         let ev = self.get_player_ev(&round, player_num);
 
-        let ev = (ev * 100.0) as u16;
+        let ev = (ev * 50.0) as u16;
         let winner = match self.winner {
             Some(Winner::Player(0)) => BidResult::Player(0),
             Some(Winner::Player(_)) => BidResult::Player(1),
@@ -1053,12 +1075,12 @@ impl State<AuctionPokerAction> for AuctionPokerState {
 
                 let pot = self.pot;
                 let pot = pot as f32 / MAX_POT as f32;
-                let scaled_pot = (pot * 200.0) as u8;
+                let scaled_pot = (pot * 100.0) as u8;
                 let stacks = [
                     self.stacks[0] as f32 / STACK_SIZE as f32,
                     self.stacks[1] as f32 / STACK_SIZE as f32,
                 ];
-                let scaled_stacks = [(stacks[0] * 50.0) as u8, (stacks[1] * 50.0) as u8];
+                let scaled_stacks = [(stacks[0] * 30.0) as u8, (stacks[1] * 30.0) as u8];
 
                 let pot_and_stacks = [
                     Feature::Pot(scaled_pot),
