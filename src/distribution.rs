@@ -64,7 +64,7 @@ impl<T> Categorical<T> {
         let ps: Vec<f32> = probs.into();
         let is: Vec<T> = items.into();
         debug_assert_eq!(ps.len(), is.len());
-        debug_assert!((ps.iter().sum::<f32>() - 1.0) < 1e-3, 
+        debug_assert!((ps.iter().sum::<f32>() - 1.0) < 1e-4, 
                       "invalid distribution: {:?}", ps);
         
         let wi = WeightedIndex::new(&ps);
@@ -85,7 +85,7 @@ impl<T> Categorical<T> {
             .map(|(p, m)| if *m { *p } else { 0.0 })
             .collect();
         // If ps is all zeroes now
-        if ps.iter().all(|a| *a < 1e-3) {
+        if ps.iter().all(|a| *a < 1e-4) {
             //Uniform distribution over mask
             ps = mask.iter().map(|m| if *m { 1.0 } else { 0.0 }).collect();
         }

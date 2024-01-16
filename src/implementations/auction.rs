@@ -354,10 +354,13 @@ impl Into<ActionIndex> for AuctionPokerAction {
                 match size {
                     // SMALL ABSTRACTION SPACE SO WE CAN TEST
                     // WHETHER THE ABSTRACTION IS WORKING
-                    0..=50 => 3,
-                    ..=100 => 4,
-                    ..=500 => 5,
-                    ..=1000000 => 6,
+                    0..=500 => 3,
+                    ..=1000 => 4,
+                    ..=1500 => 5,
+                    ..=2000 => 6,
+                    ..=5000 => 7,
+                    ..=10000 => 8,
+                    ..=1000000 => 9,
                     // LARGE ABSTRACTIONS
                     //// Get really granular for the first several sizes of the pot
                     //0..=50 => 3,
@@ -415,47 +418,53 @@ impl Into<ActionIndex> for AuctionPokerAction {
             ),
 
             AuctionPokerAction::Bid(Amount(x)) => { match x {
-                0 => 42,
-                1..=10 => 43,
-                11..=20 => 44,
-                21..=30 => 45,
-                31..=40 => 46,
-                41..=50 => 47,
-                51..=60 => 48,
-                61..=70 => 49,
-                71..=80 => 50,
-                81..=90 => 51,
-                91..=100 => 52,
-                101..=110 => 53,
-                111..=120 => 54,
-                121..=130 => 55,
-                131..=140 => 56,
-                141..=150 => 57,
-                151..=160 => 58,
-                161..=170 => 59,
-                171..=180 => 60,
-                181..=190 => 61,
-                191..=200 => 62,
-                201..=210 => 63,
-                211..=220 => 64,
-                221..=230 => 65,
-                231..=240 => 66,
-                241..=250 => 67,
-                251..=260 => 68,
-                261..=270 => 69,
-                271..=280 => 70,
-                281..=290 => 71,
-                291..=300 => 72,
-                301..=310 => 73,
-                311..=320 => 74,
-                321..=330 => 75,
-                331..=340 => 76,
-                341..=350 => 77,
-                351..=360 => 78,
-                361..=370 => 79,
-                371..=380 => 80,
-                381..=390 => 81,
-                391..=400 => 82,
+                0..=10 => 7,
+                0..=20 => 8,
+                1..=30 => 9,
+                2..=40 => 10,
+                3..=50 => 11,
+                ..=400 => 12,
+                //0 => 42,
+                //1..=10 => 43,
+                //11..=20 => 44,
+                //21..=30 => 45,
+                //31..=40 => 46,
+                //41..=50 => 47,
+                //51..=60 => 48,
+                //61..=70 => 49,
+                //71..=80 => 50,
+                //81..=90 => 51,
+                //91..=100 => 52,
+                //101..=110 => 53,
+                //111..=120 => 54,
+                //121..=130 => 55,
+                //131..=140 => 56,
+                //141..=150 => 57,
+                //151..=160 => 58,
+                //161..=170 => 59,
+                //171..=180 => 60,
+                //181..=190 => 61,
+                //191..=200 => 62,
+                //201..=210 => 63,
+                //211..=220 => 64,
+                //221..=230 => 65,
+                //231..=240 => 66,
+                //241..=250 => 67,
+                //251..=260 => 68,
+                //261..=270 => 69,
+                //271..=280 => 70,
+                //281..=290 => 71,
+                //291..=300 => 72,
+                //301..=310 => 73,
+                //311..=320 => 74,
+                //321..=330 => 75,
+                //331..=340 => 76,
+                //341..=350 => 77,
+                //351..=360 => 78,
+                //361..=370 => 79,
+                //371..=380 => 80,
+                //381..=390 => 81,
+                //391..=400 => 82,
                 _ => panic!("Well this is awkward... the bid size is too large!"),
             }}
 
@@ -1136,10 +1145,18 @@ impl State<AuctionPokerAction> for AuctionPokerState {
             }
             AuctionPokerAction::Check => {
                 let player_num = self.active_player.player_num() as usize;
-                match player_num {
-                    1 => self.active_player = self.action_end(player_num),
-                    0 => self.active_player = self.betting_round_end(),
-                    _ => panic!("Invalid player number"),
+                match self.current_betting_round() {
+                    Round::PreFlop => match player_num {
+                        0 => self.active_player = self.action_end(player_num),
+                        1 => self.active_player = self.betting_round_end(),
+                        _ => panic!("Invalid player number"),
+                    }
+                    Round::Flop | Round::Turn | Round::River => match player_num {
+                        1 => self.active_player = self.action_end(player_num),
+                        0 => self.active_player = self.betting_round_end(),
+                        _ => panic!("Invalid player number"),
+                    }
+                    _ => panic!("Cannot check during this round!"),
                 }
                 debug_assert_eq!(self.stacks[0] + self.stacks[1] + self.pot, 2 * STACK_SIZE);
             }
@@ -1641,7 +1658,7 @@ mod tests {
             .all(|x| matches!(x, AuctionPokerAction::DealHole(_, 0))));
 
         state.update(AuctionPokerAction::DealHole(
-            Card::new("2c").to_usize().unwrap(),
+            Card::new("3c").to_usize().unwrap(),
             0,
         ));
 
@@ -1729,7 +1746,7 @@ mod tests {
 
         // River dealt
         state.update(AuctionPokerAction::DealCommunity(
-            Card::new("3c").to_usize().unwrap(),
+            Card::new("5c").to_usize().unwrap(),
         ));
 
         // Check for BettingRoundStart marker
@@ -2115,6 +2132,7 @@ mod tests {
         state.update(AuctionPokerAction::DealHole(4, 1));
         state.update(AuctionPokerAction::BettingRoundStart);
         state.update(AuctionPokerAction::Call);
+        state.update(AuctionPokerAction::BettingRoundEnd);
 
         state.update(AuctionPokerAction::DealCommunity(5));
         state.update(AuctionPokerAction::DealCommunity(6));
@@ -2147,6 +2165,74 @@ mod tests {
         let card_interpreted = Card::from_index(Card::new(card_str).to_usize().unwrap());
         assert_eq!(card_interpreted, Card::new(card_str));
         assert_eq!(card_interpreted.to_string().unwrap(), card_str.to_owned());
+    }
+    #[test] 
+    fn test_check_raise_fold() {
+        let mut state = AuctionPokerState::new();
+        state.update(AuctionPokerAction::DealHole(0, 0));
+        state.update(AuctionPokerAction::DealHole(2, 0));
+        state.update(AuctionPokerAction::DealHole(3, 1));
+        state.update(AuctionPokerAction::DealHole(4, 1));
+        state.update(AuctionPokerAction::BettingRoundStart);
+        state.update(AuctionPokerAction::Call);
+        state.update(AuctionPokerAction::BettingRoundEnd);
+
+        state.update(AuctionPokerAction::DealCommunity(5));
+        state.update(AuctionPokerAction::DealCommunity(6));
+        state.update(AuctionPokerAction::DealCommunity(7));
+        state.update(AuctionPokerAction::AuctionStart);
+        state.update(AuctionPokerAction::Bid(Amount(50)));
+        state.update(AuctionPokerAction::Bid(Amount(20)));
+        state.update(AuctionPokerAction::Auction(Winner::Player(1)));
+        state.update(AuctionPokerAction::DealHole(8, 1));
+
+        state.update(AuctionPokerAction::BettingRoundStart);
+        state.update(AuctionPokerAction::Check);
+        state.update(AuctionPokerAction::PlayerActionEnd(1));
+        assert!(state
+            .active_player()
+            .actions()
+            .iter()
+            .any(|x| matches!(x, AuctionPokerAction::Raise(_))));
+        state.update(AuctionPokerAction::Raise(Amount(20)));
+        state.update(AuctionPokerAction::PlayerActionEnd(0));
+        assert!(state
+            .active_player()
+            .actions()
+            .iter()
+            .any(|x| matches!(x, AuctionPokerAction::Fold)));
+    }
+
+    #[test] 
+    fn test_check_raise_flop() {
+        let mut state = AuctionPokerState::new();
+        state.update(AuctionPokerAction::DealHole(0, 0));
+        state.update(AuctionPokerAction::DealHole(2, 0));
+        state.update(AuctionPokerAction::DealHole(3, 1));
+        state.update(AuctionPokerAction::DealHole(4, 1));
+        state.update(AuctionPokerAction::BettingRoundStart);
+        state.update(AuctionPokerAction::Call);
+        state.update(AuctionPokerAction::BettingRoundEnd);
+
+        state.update(AuctionPokerAction::DealCommunity(5));
+        state.update(AuctionPokerAction::DealCommunity(6));
+        state.update(AuctionPokerAction::DealCommunity(7));
+        state.update(AuctionPokerAction::AuctionStart);
+        state.update(AuctionPokerAction::Bid(Amount(50)));
+        state.update(AuctionPokerAction::Bid(Amount(20)));
+        state.update(AuctionPokerAction::Auction(Winner::Player(1)));
+        state.update(AuctionPokerAction::DealHole(8, 1));
+
+        state.update(AuctionPokerAction::BettingRoundStart);
+        state.update(AuctionPokerAction::Check);
+        state.update(AuctionPokerAction::PlayerActionEnd(1));
+        println!("{:?}", state);
+        assert!(state
+            .active_player()
+            .actions()
+            .iter()
+            .any(|x| matches!(x, AuctionPokerAction::Raise(_))));
+        state.update(AuctionPokerAction::Raise(Amount(20)));
     }
 
     #[test]

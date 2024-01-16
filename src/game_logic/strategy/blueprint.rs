@@ -124,6 +124,11 @@ impl BlueprintStrategy {
         println!("Merging strategies");
         let time = std::time::Instant::now();
         for (info_set, policy) in strategy0.information {
+            let history : History = info_set.clone().into();
+            if policy[0] > 0.02 {
+                println!("Player 0: {:?}", history);
+                println!("Player 0: {:?}", policy);
+            }
             policy0.insert(info_set, compress_policy(&policy));
         }
         println!("Time to merge (0) {:?}", time.elapsed());

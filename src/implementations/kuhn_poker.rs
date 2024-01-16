@@ -27,11 +27,11 @@ impl Into<ActionIndex> for KuhnPokerAction {
         match self {
             KuhnPokerAction::Fold => 0,
             KuhnPokerAction::Call => 1,
-            KuhnPokerAction::Check => 0,
+            KuhnPokerAction::Check => 2,
             KuhnPokerAction::Deal(0) => 3,
             KuhnPokerAction::Deal(1) => 4,
             KuhnPokerAction::Deal(2) => 5,
-            KuhnPokerAction::Bet => 1,
+            KuhnPokerAction::Bet => 6,
             _ => panic!("Invalid action"),
         }
     }

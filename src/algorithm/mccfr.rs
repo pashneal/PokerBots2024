@@ -3,6 +3,8 @@ use crate::game_logic::action::GameMapper;
 use crate::game_logic::action::{Action, ActionIndex};
 use crate::game_logic::state::{ActivePlayer, State};
 use crate::game_logic::strategy::*;
+use crate::game_logic::visibility::{History, Feature};
+use crate::implementations::auction::Card;
 use crate::{Categorical, Game};
 use rand::Rng;
 use serde_json::json;
@@ -114,7 +116,6 @@ impl<A: Action, S: State<A>> MCCFR<A, S> {
                     println!("Iteration: {}, Nodes Traversed: {}", self.iterations, self.nodes_traversed);
                 }
                 let actions = self.game_mapper.map_actions(&actions, depth);
-                assert!(actions.len() > 0);
                 let max_index = A::max_index();
 
                 let mut mask = (0..max_index).map(|_| false).collect::<Vec<bool>>();
@@ -134,7 +135,7 @@ impl<A: Action, S: State<A>> MCCFR<A, S> {
                 let strategy = &mut self.strategies[player_num];
 
                 let mut regrets = match strategy.regrets(&history) {
-                    Some(r) => regret_matching(&r),
+                    Some(r) => regret_matching(&r,&mask),
                     None => vec![1.0 / length; length as usize],
                 };
 
@@ -164,6 +165,7 @@ impl<A: Action, S: State<A>> MCCFR<A, S> {
                     strategy.update(history.clone(), None, Some(&zeroes));
                 }
                 let policy = strategy.policy(&history).expect("Could not get policy");
+
                 let sampling_values =
                     average_sampling(&policy, self.exploration, self.bonus, self.threshold);
 
@@ -208,8 +210,35 @@ impl<A: Action, S: State<A>> MCCFR<A, S> {
                     .map(|a| a - counter_factual_estimation)
                     .collect::<Vec<f32>>();
 
+                let dropped_non_actions = update_with_cfr
+                    .iter()
+                    .zip(mask.iter())
+                    .map(|(a, b)| if *b { *a } else { 0.0 })
+                    .collect::<Vec<f32>>();
+
                 let strategy = &mut self.strategies[player_num];
-                strategy.update(history, Some(&update_with_cfr), None);
+                strategy.update(history, Some(&dropped_non_actions), None);
+                //if self.nodes_traversed % 10000 < 1000 && player_num ==0 {
+                    //let history : History = history.into();
+                    //if history.0.len() == 5  {
+                        //let cards = history.0[1].clone() as ActionIndex;
+                        //let feature : Feature = cards.into();
+                        //let policy = strategy.policy(&self.game.history(0)).unwrap();
+                        //let new_regrets = strategy.regrets(&self.game.history(0)).unwrap();
+
+
+                        //println!("history: {:?}", history);
+                        //println!("feature: {:?}", feature);
+                        //println!("suited: {:?}", history.0[2] == 1);
+                        //println!("policy: {:?}", policy);
+                        //println!("actions: {:?}", actions);
+                        //println!("new reg: {:?}", new_regrets);
+                        //println!("q: {}", q );
+                        //println!("Value: {}", counter_factual_estimation);
+                        //println!("Regrets updates: {:?}", dropped_non_actions);
+                    //}
+
+                //}
 
                 counter_factual_estimation
             }
@@ -230,8 +259,10 @@ fn average_sampling(policy: &[f32], e: f32, b: f32, t: f32) -> Vec<f32> {
 }
 
 /// Weigh regrets by the relative size of that regret
-fn regret_matching(reg: &[f32]) -> Vec<f32> {
+fn regret_matching(reg: &[f32], mask : &[bool]) -> Vec<f32> {
     let regp = reg.iter().map(|&v| if v >= 0.0 { v } else { 0.0 });
+    let regp = regp.zip(mask.iter()).map(|(r, m)| if *m { r } else { 0.0 });
+
     let s = regp.clone().sum::<f32>();
     let l = reg.len();
 

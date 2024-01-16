@@ -3,6 +3,7 @@ use crate::game_logic::action::{Action, ActionIndex};
 use crate::game_logic::state::ActivePlayer;
 use crate::game_logic::strategy::CondensedInfoSet;
 use std::{fmt::Debug, hash::Hash};
+use crate::implementations::auction::Card;
 
 #[derive(Clone, Debug)]
 pub struct History(pub Vec<ActionIndex>);
@@ -110,6 +111,20 @@ impl Into<ActionIndex> for Feature {
             Feature::Stack(x) => x as ActionIndex,
             Feature::Aggression(x) => x as ActionIndex,
         }
+    }
+}
+
+impl From<ActionIndex> for Feature {
+    fn from(index :ActionIndex) -> Self{
+       match index  {
+           0..=169 => {
+               let rank1 = (index / 13) as usize;
+               let rank2 = (index % 13) as usize;
+               Feature::Ranks(rank1, rank2)
+           }
+           _ => panic!("Invalid feature index")
+       }
+
     }
 }
 
