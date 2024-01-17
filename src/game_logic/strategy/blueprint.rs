@@ -64,7 +64,12 @@ impl Evaluator {
                     //TODO: can make it nonlinear loss 
                     (test as i32- target as i32).abs()
                 }
-                FitFunction::Exact => { 0 }
+                FitFunction::Exact => { 
+                    match test == target {
+                        true => 0,
+                        false => 10000,
+                    }
+                }
                 FitFunction::Difference => {
                     (test as i32- target as i32).abs()
                 }
