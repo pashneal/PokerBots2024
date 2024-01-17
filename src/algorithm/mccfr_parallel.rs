@@ -63,8 +63,6 @@ impl<A: Action + Sync + Send + 'static, S: State<A> + Send + 'static> MCCFRParal
                 let runner = thread.join().unwrap();
                 self.runners.push(runner);
             }
-            let save_file = "auction_poker_intermediate";
-            println!("Saving intermediate results to {}", save_file);
             if let Some(file_name) = &self.file_name {
                 self.write_to(file_name);
             } else {
