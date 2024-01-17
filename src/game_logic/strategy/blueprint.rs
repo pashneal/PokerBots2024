@@ -115,8 +115,12 @@ impl Evaluator {
         let min_values :  Vec<u8> = ranges.clone().map( |(min, _)|  min).collect();
         let max_values :  Vec<u8> = ranges.clone().map( |(_, max)|  max).collect();
 
+        println!("Min: {:?} Max: {:?}", min_values, max_values);
+
         let min_info_set = History(min_values).into_condensed();
         let max_info_set = History(max_values).into_condensed();
+
+        println!("Min: {:?} Max: {:?}", min_info_set, max_info_set);
 
         let possible_values = map.range((Included(min_info_set) , Included(max_info_set)));
 
@@ -129,8 +133,8 @@ impl Evaluator {
             let loss = Evaluator::loss(&target, &test, &evaluator) ;
             if loss < min_loss{
                 min_loss = loss;
+                min_key = Some(key);
             }
-            min_key = Some(key);
         };
 
         min_key
@@ -155,7 +159,7 @@ pub fn compress_policy(policy : &PolicyDistribution) -> CondensedPolicyDistribut
     let mut result = [0; ARRAY_SIZE];
     for (i, chunks) in policy.chunks(MAX_FIT).enumerate() {
         let mut total = 0;
-        for (j, &value) in chunks.iter().rev().enumerate() {
+        for (_, &value) in chunks.iter().rev().enumerate() {
             let value = compress(value);
             total *= 1000;
             total += value;
@@ -354,7 +358,7 @@ impl BlueprintStrategy {
     /// chosen ActionIndex given a current game
     ///
     /// returns None if unable to find a suitable normalized strategy
-    pub fn get_policy(&self, game : &Game<AuctionPokerAction, AuctionPokerState>, player_num: usize) -> Option<Vec<(ActionIndex, f32)>> {
+    pub fn get_exact_policy(&self, game : &Game<AuctionPokerAction, AuctionPokerState>, player_num: usize) -> Option<Vec<(ActionIndex, f32)>> {
         let info_set = game.get_information_set(player_num);
         let condensed_policy = self.policies[player_num].get(&info_set).map(|policy| *policy);
         self.normalize_policy(&condensed_policy)
@@ -390,11 +394,10 @@ mod tests {
 
         let strategy = strategy.with_evaluator(preflop_evaluator);
 
-        println!("Policy {:?}" , strategy.get_best_policy(&g, 0));
         let policy = strategy.get_best_policy(&g, 0);
-        let policy2 = strategy.get_policy(&g, 0);
+        let policy2 = strategy.get_exact_policy(&g, 0);
         assert!(policy.is_some());
-        assert_eq!(policy, policy2, "Best fit Policy should be the same as exact policy");
+        assert_eq!(policy, policy2, "Best fit policy should be the same as exact policy");
     }
 
     #[test]
@@ -406,8 +409,7 @@ mod tests {
         g.play(&AuctionPokerAction::DealHole(4, 1));
         g.play(&AuctionPokerAction::BettingRoundStart);
         let strategy = BlueprintStrategy::load_bincode("auction_poker.bp");
-        println!("Policy {:?}" , strategy.get_policy(&g, 0));
-        let policy = strategy.get_policy(&g, 0);
+        let policy = strategy.get_exact_policy(&g, 0);
         assert!(policy.is_some());
 
     }
@@ -431,5 +433,19 @@ mod tests {
             }
         }
         assert!(folded > 0 , "There should be at least some nodes with very high folding frequency");
+    }
+
+
+    #[test]
+    pub fn decompress_compress() {
+        let mut policy = vec![0.0; 40];
+        policy[0] = 0.5;
+        policy[1] = 0.5;
+        policy[9] = 0.5;
+        let compressed = compress_policy(&policy);
+        let decompressed = decompress_policy(&compressed);
+        assert!(policy[0]  - decompressed[0] < 1e-3);
+        assert!(policy[1]  - decompressed[1] < 1e-3);
+        assert!(policy[9]  - decompressed[9] < 1e-3);
     }
 }

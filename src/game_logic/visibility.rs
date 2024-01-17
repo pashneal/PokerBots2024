@@ -29,7 +29,7 @@ impl From<CondensedInfoSet> for History {
             history.push((condensed % MAX_ACTIONS) as ActionIndex);
             condensed /= MAX_ACTIONS;
         }
-        History(history)
+        History(history.into_iter().rev().collect())
     }
 }
 
