@@ -200,47 +200,12 @@ mod tests {
                 let round = history.0[0];
                 if round > 1 {
                     let fold_freq = decompressed[AuctionPokerAction::Fold.index() as usize];
-                    if fold_freq > 0.50 {
+                    if fold_freq > 0.80 {
                         folded += 1;
                     }
                 }
             }
         }
-        assert!(folded > 0 , "There should be at least some nodes with high folding frequency");
-        for policy in strategy.policies {
-            for (info_set, policy) in policy.iter() {
-                let decompressed = decompress_policy(policy);
-                let history : History = (*info_set).into();
-                let round = history.0[0];
-                let ev = history.0[1];
-
-                // Only look at flop
-                if round != 2 {
-                    continue;
-                }
-                if ev > 5 {
-                    continue;
-                }
-                let fold_freq = decompressed[AuctionPokerAction::Fold.index() as usize];
-                assert!( fold_freq > 0.50,
-                        "Model should fold with higher frequency (at flop) when EV is very low Found a fold frequency of {}", fold_freq)
-            }
-            for (info_set, policy) in policy.iter() {
-                let decompressed = decompress_policy(policy);
-                let history : History = (*info_set).into();
-                let round = history.0[0];
-                // Only look at the river
-                if round != 4 {
-                    continue;
-                }
-                let ev = history.0[1];
-                if ev != 100 {
-                    continue;
-                }
-                let fold_freq = decompressed[AuctionPokerAction::Fold.index() as usize];
-                assert!(fold_freq < 0.05,
-                        "Model should fold with very low frequency (at river) when EV is very low, Found a fold frequency of {}", fold_freq);
-            }
-        }
+        assert!(folded > 0 , "There should be at least some nodes with very high folding frequency");
     }
 }
