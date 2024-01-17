@@ -19,14 +19,14 @@ use crate::game_logic::strategy::blueprint::*;
 pub type Utility = f32;
 
 pub fn main() -> () {
-    let mut mcp = MCCFRParallel::<AuctionPokerAction, AuctionPokerState>::new(12, Some("auction_poker"));
-    mcp.run_iterations(110_000, 0.2);
+    //let mut mcp = MCCFRParallel::<AuctionPokerAction, AuctionPokerState>::new(12, Some("auction_poker"));
+    //mcp.run_iterations(110_000, 0.2);
     //mcp.write_to("auction_poker");
     
     let strat = BlueprintStrategy::load_from_json("auction_poker_p0.json",
                                                   "auction_poker_p1.json");
     strat.save_bincode("auction_poker.bp"); 
-    let strat = BlueprintStrategy::load_bincode("auction_poker.bp");
+    //let strat = BlueprintStrategy::load_bincode("auction_poker.bp");
     ////loop {
         
     //}

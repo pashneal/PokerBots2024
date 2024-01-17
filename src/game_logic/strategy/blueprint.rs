@@ -30,6 +30,8 @@ const CHOSEN_COMPRESSION_BITS : usize = 128;  // The bits in the
 const MAX_FIT : usize = CHOSEN_COMPRESSION_BITS / MAX_VALUE_SIZE_BITS;
 
 const ARRAY_SIZE : usize =  MAX_POLICY_LENGTH / MAX_FIT;
+
+const FAIL_CUTOFF : i32  = 1000;
                                             
 type CondensedPolicyDistribution = [u128; ARRAY_SIZE];
 
@@ -67,7 +69,7 @@ impl Evaluator {
                 FitFunction::Exact => { 
                     match test == target {
                         true => 0,
-                        false => 10000,
+                        false => FAIL_CUTOFF,
                     }
                 }
                 FitFunction::Difference => {
@@ -120,16 +122,15 @@ impl Evaluator {
         let min_values :  Vec<u8> = ranges.clone().map( |(min, _)|  min).collect();
         let max_values :  Vec<u8> = ranges.clone().map( |(_, max)|  max).collect();
 
-        println!("Min: {:?} Max: {:?}", min_values, max_values);
+        println!("Min values: {:?}", min_values);
+        println!("Max values: {:?}", max_values);
 
         let min_info_set = History(min_values).into_condensed();
         let max_info_set = History(max_values).into_condensed();
 
-        println!("Min: {:?} Max: {:?}", min_info_set, max_info_set);
-
         let possible_values = map.range((Included(min_info_set) , Included(max_info_set)));
 
-        let mut min_loss = 1000;
+        let mut min_loss = FAIL_CUTOFF;
         let mut min_key = None;
 
         let target : History = target.into();
@@ -142,6 +143,7 @@ impl Evaluator {
             }
         };
 
+        println!("[STATS] For the curious, min loss for this policy: {:?}", min_loss);
         min_key
 
 
@@ -248,10 +250,6 @@ impl BlueprintStrategy {
         let time = std::time::Instant::now();
         for (info_set, policy) in strategy0.information {
             let history : History = info_set.clone().into();
-            if policy[0] > 0.02 {
-                println!("Player 0: {:?}", history);
-                println!("Player 0: {:?}", policy);
-            }
             policy0.insert(info_set, compress_policy(&policy));
         }
         println!("Time to merge (0) {:?}", time.elapsed());
@@ -267,9 +265,11 @@ impl BlueprintStrategy {
     }
 
 
-    pub fn with_evaluator(mut self, evaluator : Evaluator) -> BlueprintStrategy{
-        self.evaluator = evaluator;
-        self
+    pub fn with_evaluator(self, evaluator : Evaluator) -> BlueprintStrategy{
+        BlueprintStrategy {
+            policies : self.policies,
+            evaluator,
+        }
     }
 
     pub fn save_bincode(&self, file_name : &str) {
@@ -354,6 +354,8 @@ impl BlueprintStrategy {
     /// returns None if unable to find a suitable normalized strategy
     pub fn get_best_policy(&self, game: &Game<AuctionPokerAction, AuctionPokerState>, player_num: usize) -> Option<Vec<(ActionIndex, f32)>> {
         let current_info_set = game.get_information_set(player_num);
+        let history : History = current_info_set.clone().into();
+        println!("Current history set {:?}", history);
         let best_info_set  = self.evaluator.get_best(&self.policies[player_num], current_info_set);
         let policy = best_info_set.map(|info_set| self.policies[player_num][&info_set]);
         self.normalize_policy(&policy)
@@ -375,6 +377,7 @@ impl BlueprintStrategy {
 mod tests {
     use super::*;
     use crate::implementations::auction::*;
+    use crate::implementations::auction::RelativeSize::*;
     #[test]
     pub fn test_model_can_give_fitting_suggestions() {
         let mut g = Game::<AuctionPokerAction, AuctionPokerState>::new();
@@ -411,11 +414,31 @@ mod tests {
         g.play(&AuctionPokerAction::DealHole(0, 0));
         g.play(&AuctionPokerAction::DealHole(2, 0));
         g.play(&AuctionPokerAction::DealHole(3, 1));
-        g.play(&AuctionPokerAction::DealHole(4, 1));
+        g.play(&AuctionPokerAction::DealHole(10, 1));
         g.play(&AuctionPokerAction::BettingRoundStart);
         let strategy = BlueprintStrategy::load_bincode("auction_poker.bp");
         let policy = strategy.get_exact_policy(&g, 0);
         assert!(policy.is_some());
+        println!("For the curious, the policy for a pair of Aces: {:?}", policy);
+        let preflop_evaluator = Evaluator {
+            preflop : vec![
+                FitFunction::Exact, //  Round must be exact
+                FitFunction::Exact, //  Ranks must be exact
+                FitFunction::Exact, //  Suited must be exact
+                FitFunction::Exact, //  Aggression must be exact 
+                FitFunction::Difference, //  Pot is allowed to be different
+            ],
+            auction : vec![],
+            flop_onwards : vec![],
+        };
+        let strategy = strategy.with_evaluator(preflop_evaluator);
+        let bet_size = Amount(40);
+        g.play(&AuctionPokerAction::Raise(bet_size.clone()));
+        g.play(&AuctionPokerAction::PlayerActionEnd(0));
+        let policy = strategy.get_best_policy(&g, 1);
+        assert!(policy.is_some());
+        println!("For the curious, the policy in response to Raise({:?})\n {:?}", bet_size, policy);
+
 
     }
     #[test]
