@@ -74,6 +74,18 @@ impl Into<usize> for Round {
         }
     }
 }
+impl From<usize> for Round {
+    fn from(u : usize) -> Round {
+        match u {
+            0 => Round::PreFlop,
+            1 => Round::Auction,
+            2 => Round::Flop,
+            3 => Round::Turn,
+            4 => Round::River,
+            _ => panic!("Cannot convert {} to Round", u),
+        }
+    }
+}
 
 #[derive(Clone, Debug)]
 pub enum BidResult {
@@ -92,6 +104,14 @@ pub enum Feature {
     Stack(u8), // Stack as percentage of max scaled down (0-50)
     Aggression(usize),
 }
+
+
+impl Feature {
+    pub fn max_index() -> usize {
+        200
+    }
+}
+
 
 impl Into<ActionIndex> for Feature {
     fn into(self) -> ActionIndex {

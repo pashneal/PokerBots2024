@@ -47,15 +47,19 @@ impl<A: Action> ActivePlayer<A> {
 }
 
 pub trait State<A: Action>: Clone {
+
+
     /// Given a current state, determine a given action's visibility
     /// with respect to the active player.
     ///
     ///     Public: The action is visible to all players
     ///     Private: The action is only visible to the active player
     ///     Shared(Vec<_>): The action is visible to the players in the vector
-    fn get_observations(&mut self, action: &A) -> Vec<Observation<A>>;
+    fn get_observations_after(&mut self, action: &A) -> Vec<Observation<A>>;
+
     //fn get_features<B : Into<ActionIndex> + Clone>(&self, action: &A) -> Vec<Visibility<B>>;
     /// Returns the current player in a given state
+
     fn active_player(&self) -> ActivePlayer<A>;
     /// Advance the state by a given action
     fn update(&mut self, action: A);

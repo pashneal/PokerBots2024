@@ -13,3 +13,7 @@ pub const MAX_POT: u32 = 2 * STACK_SIZE;
 
 pub const EV_ITERATIONS: u32 = 10_000;
 pub const AGGRESSION_LIMIT : usize = 5;
+
+pub const BLUEPRINT_CUTOFF : f32 = 0.01; // The percent in which we 
+                                         // remove an action from policy 
+                                         // distribution

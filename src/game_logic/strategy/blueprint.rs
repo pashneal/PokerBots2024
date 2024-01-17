@@ -2,12 +2,18 @@ use std::collections::BTreeMap;
 use crate::game_logic::visibility::History;
 use crate::implementations::auction::*;
 use crate::game_logic::action::*;
+use crate::game_logic::game::*;
+use crate::game_logic::visibility::*;
 
 use crate::game_logic::strategy::CondensedInfoSet;
 use crate::game_logic::strategy::PolicyDistribution;
 use crate::game_logic::strategy::RegretDistribution;
 use crate::game_logic::strategy::RegretMap;
 use crate::game_logic::strategy::PolicyMap;
+
+use crate::constants::*;
+
+use std::ops::Bound::Included;
 
 
 use serde::{Deserialize, Serialize};
@@ -26,6 +32,113 @@ const MAX_FIT : usize = CHOSEN_COMPRESSION_BITS / MAX_VALUE_SIZE_BITS;
 const ARRAY_SIZE : usize =  MAX_POLICY_LENGTH / MAX_FIT;
                                             
 type CondensedPolicyDistribution = [u128; ARRAY_SIZE];
+
+
+#[derive(Clone, Debug, Copy)]
+pub enum FitFunction {
+    Range(i32, i32),
+    Difference,
+    Exact,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct Evaluator  {
+    pub preflop : Vec<FitFunction>,
+    pub auction : Vec<FitFunction>,
+    pub flop_onwards: Vec<FitFunction>
+}
+
+
+
+
+
+impl Evaluator {
+
+    fn loss ( target : &History, test : &History, functions : &Vec<FitFunction> ) -> i32 {
+        let target = target.0.clone();
+        let test = test.0.clone();
+        let mut loss = 0;
+        for ((&function, &target), &test) in functions.iter().zip(target.iter()).zip(test.iter()) {
+            let dl = match function {
+                FitFunction::Range( _ , _) => {
+                    //TODO: can make it nonlinear loss 
+                    (test as i32- target as i32).abs()
+                }
+                FitFunction::Exact => { 0 }
+                FitFunction::Difference => {
+                    (test as i32- target as i32).abs()
+                }
+            };
+
+            loss += dl;
+        };
+
+        loss
+    }
+
+    fn get_min_max( target_value : u8 , function : FitFunction) -> (u8, u8) {
+        match function {
+            FitFunction::Range(pos_delta , neg_delta) => {
+                let value = target_value as i32;
+                let max_index = Feature::max_index() as i32;
+                let max = (value + pos_delta).min(max_index);
+                let min = (value + neg_delta).max(0);
+                (min as u8, max as u8)
+            }
+
+            FitFunction::Exact => {
+                (target_value, target_value)
+            }
+
+            FitFunction::Difference => {
+                (0, Feature::max_index() as u8)
+            }
+        }
+    }
+    fn get_best(&self, map : &BTreeMap<CondensedInfoSet, CondensedPolicyDistribution>, target : CondensedInfoSet) -> Option<CondensedInfoSet> {
+
+        let history : History = target.clone().into();
+        let history  = history.0;
+        let round : Round = (history[0] as usize).into();
+
+        let evaluator = match round {
+            Round::PreFlop => self.preflop.clone(),
+            Round::Auction => self.auction.clone(),
+            Round::Flop | Round::Turn | Round::River => self.flop_onwards.clone(),
+        };
+
+        debug_assert_eq!(evaluator.len(), history.len(), "History does not match the evaluation
+        array");
+
+        let ranges = history.iter().zip(evaluator.iter()).map(|(x, func)| Evaluator::get_min_max( *x , *func));
+
+        let min_values :  Vec<u8> = ranges.clone().map( |(min, _)|  min).collect();
+        let max_values :  Vec<u8> = ranges.clone().map( |(_, max)|  max).collect();
+
+        let min_info_set = History(min_values).into_condensed();
+        let max_info_set = History(max_values).into_condensed();
+
+        let possible_values = map.range((Included(min_info_set) , Included(max_info_set)));
+
+        let mut min_loss = 1000;
+        let mut min_key = None;
+
+        let target : History = target.into();
+        for (&key, _) in possible_values {
+            let test : History = key.into();
+            let loss = Evaluator::loss(&target, &test, &evaluator) ;
+            if loss < min_loss{
+                min_loss = loss;
+            }
+            min_key = Some(key);
+        };
+
+        min_key
+
+
+    }
+}
+
 
 pub fn compress(value : f32) -> u128 {
     let result = (value * 999.0) as u128;
@@ -89,9 +202,10 @@ pub fn analyze_policy(info_set: CondensedInfoSet , policy : &PolicyDistribution)
 
 #[derive(Clone, Debug)]
 pub struct BlueprintStrategy {
-    policies : Vec<BTreeMap<CondensedInfoSet, CondensedPolicyDistribution>>, }
-//pub fn uncondense_info_set(info_set : &CondensedInfoSet) -> Vec<u8> {
-//}
+    policies : Vec<BTreeMap<CondensedInfoSet, CondensedPolicyDistribution>>,
+    evaluator : Evaluator,
+
+}
 
 #[derive(Deserialize)]
 #[serde(transparent)]
@@ -139,7 +253,14 @@ impl BlueprintStrategy {
 
         BlueprintStrategy {
             policies : vec![policy0, policy1],
+            evaluator : Evaluator::default(),
         }
+    }
+
+
+    pub fn with_evaluator(mut self, evaluator : Evaluator) -> BlueprintStrategy{
+        self.evaluator = evaluator;
+        self
     }
 
     pub fn save_bincode(&self, file_name : &str) {
@@ -179,7 +300,64 @@ impl BlueprintStrategy {
         println!("Time to convert {:?}", time.elapsed());
         BlueprintStrategy {
             policies,
+            evaluator : Evaluator::default(),
         }
+    }
+
+    fn normalize_policy(&self,  condensed_policy: &Option<CondensedPolicyDistribution>) -> Option<Vec<(ActionIndex, f32)>> {
+        let policy = match condensed_policy {
+            Some(policy) => decompress_policy(policy),
+            None => panic!("No policy found!"),
+        };
+
+        let filtered_policy : Vec<(ActionIndex, f32)>= policy.iter().enumerate().filter_map( | (action_index, probability) |{
+            match *probability > BLUEPRINT_CUTOFF   {
+                true => Some((action_index as ActionIndex, *probability)),
+                false => None
+            }
+        }).collect();
+
+        if filtered_policy.len() == 0 {
+            return None;
+        }
+
+        let probabilities : Vec<f32> = filtered_policy.iter().map( |(_ , prob)| *prob).collect();
+        let sum : f32 = probabilities.iter().sum();
+
+        if sum < 1e-5 {
+            return None;
+        }
+
+        let normalized : Vec<(ActionIndex, f32)>  = filtered_policy.iter().map(| (action_index, probability) | {
+            (*action_index, probability / sum)
+        }).collect();
+
+        
+        Some(normalized)
+    }
+
+    /// Returns a probability distribution over
+    /// chosen ActionIndex given a current game
+    /// 
+    /// Uses a collection of evaluator function to determine the best policy for 
+    /// an info set that doesn't exist in the current blueprint strategy
+    ///
+    /// returns None if unable to find a suitable normalized strategy
+    pub fn get_best_policy(&self, game: &Game<AuctionPokerAction, AuctionPokerState>, player_num: usize) -> Option<Vec<(ActionIndex, f32)>> {
+        let current_info_set = game.get_information_set(player_num);
+        let best_info_set  = self.evaluator.get_best(&self.policies[player_num], current_info_set);
+        let policy = best_info_set.map(|info_set| self.policies[player_num][&info_set]);
+        self.normalize_policy(&policy)
+    }
+
+    /// Returns a probability distribution over
+    /// chosen ActionIndex given a current game
+    ///
+    /// returns None if unable to find a suitable normalized strategy
+    pub fn get_policy(&self, game : &Game<AuctionPokerAction, AuctionPokerState>, player_num: usize) -> Option<Vec<(ActionIndex, f32)>> {
+        let info_set = game.get_information_set(player_num);
+        let condensed_policy = self.policies[player_num].get(&info_set).map(|policy| *policy);
+        self.normalize_policy(&condensed_policy)
     }
 }
 
@@ -187,6 +365,52 @@ impl BlueprintStrategy {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::implementations::auction::*;
+    #[test]
+    pub fn test_model_can_give_fitting_suggestions() {
+        let mut g = Game::<AuctionPokerAction, AuctionPokerState>::new();
+        g.play(&AuctionPokerAction::DealHole(0, 0));
+        g.play(&AuctionPokerAction::DealHole(2, 0));
+        g.play(&AuctionPokerAction::DealHole(3, 1));
+        g.play(&AuctionPokerAction::DealHole(4, 1));
+        g.play(&AuctionPokerAction::BettingRoundStart);
+        let strategy = BlueprintStrategy::load_bincode("auction_poker.bp");
+
+        let preflop_evaluator = Evaluator {
+            preflop : vec![
+                FitFunction::Exact, //  Round must be exact
+                FitFunction::Exact, //  Ranks must be exact
+                FitFunction::Exact, //  Suited must be exact
+                FitFunction::Exact, //  Aggression must be exact
+                FitFunction::Difference, //  Pot is allowed to be different
+            ],
+            auction : vec![],
+            flop_onwards : vec![],
+        };
+
+        let strategy = strategy.with_evaluator(preflop_evaluator);
+
+        println!("Policy {:?}" , strategy.get_best_policy(&g, 0));
+        let policy = strategy.get_best_policy(&g, 0);
+        let policy2 = strategy.get_policy(&g, 0);
+        assert!(policy.is_some());
+        assert_eq!(policy, policy2, "Best fit Policy should be the same as exact policy");
+    }
+
+    #[test]
+    pub fn test_model_can_give_initial_suggestions() {
+        let mut g = Game::<AuctionPokerAction, AuctionPokerState>::new();
+        g.play(&AuctionPokerAction::DealHole(0, 0));
+        g.play(&AuctionPokerAction::DealHole(2, 0));
+        g.play(&AuctionPokerAction::DealHole(3, 1));
+        g.play(&AuctionPokerAction::DealHole(4, 1));
+        g.play(&AuctionPokerAction::BettingRoundStart);
+        let strategy = BlueprintStrategy::load_bincode("auction_poker.bp");
+        println!("Policy {:?}" , strategy.get_policy(&g, 0));
+        let policy = strategy.get_policy(&g, 0);
+        assert!(policy.is_some());
+
+    }
     #[test]
     pub fn test_model_knows_when_to_fold() {
         // Assumes that there is a model named "auction_poker.bp" in the current directory

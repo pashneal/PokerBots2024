@@ -1028,7 +1028,7 @@ impl State<AuctionPokerAction> for AuctionPokerState {
         }
     }
 
-    fn get_observations(
+    fn get_observations_after(
         &mut self,
         action: &AuctionPokerAction,
     ) -> Vec<Observation<AuctionPokerAction>> {

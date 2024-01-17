@@ -37,13 +37,13 @@ where
     /// Advance the game by a single Action
     pub fn play(&mut self, action: &A) {
         let active_player = self.state.active_player();
-        let observations = self.state.get_observations(action);
+        let observations = self.state.get_observations_after(action);
         self.observation_tracker
             .observe_all(observations, active_player.as_index());
         self.state.update(action.clone());
     }
 
-    pub fn history(&self, player: usize) -> CondensedInfoSet {
+    pub fn get_information_set(&self, player: usize) -> CondensedInfoSet {
         self.observation_tracker
             .get_history(player)
             .into_condensed()

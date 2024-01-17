@@ -131,7 +131,7 @@ impl<A: Action, S: State<A>> MCCFR<A, S> {
                 let player_num = player_num as usize;
                 let length = mask.len() as f32;
 
-                let history = self.game.history(player_num);
+                let history = self.game.get_information_set(player_num);
                 let strategy = &mut self.strategies[player_num];
 
                 let mut regrets = match strategy.regrets(&history) {

@@ -191,7 +191,7 @@ impl State<GoofspielAction> for GoofspielState {
         self.active.clone()
     }
 
-    fn get_observations(&mut self, action: &GoofspielAction) -> Vec<Observation<GoofspielAction>> {
+    fn get_observations_after(&mut self, action: &GoofspielAction) -> Vec<Observation<GoofspielAction>> {
         let observation = match self.active_player() {
             ActivePlayer::Terminal(_) => panic!("Terminal state has no visibility"),
             ActivePlayer::Player(_, _) => Observation::Private(Information::Action(action.clone())),
