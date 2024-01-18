@@ -2,6 +2,7 @@ use crate::constants::*;
 use std::fmt::Debug;
 use std::hash::Hash;
 pub use std::ops::RangeInclusive as StdRange;
+pub use rand::Rng;
 
 pub type ActionIndex = u8;
 pub trait Action: Clone + Debug + Filterable + Into<ActionIndex> + From<ActionIndex> {
@@ -166,14 +167,36 @@ impl<A: Filterable + Action> GameMapper<A> {
         for action in mapped {
             grouped[action.index() as usize].push(action);
         }
-        // Take the median action from each group if the group is non-empty
+
+        // Add "jitter" to the groups
+        // so that the median action is not always the same
         let mut median_actions: Vec<A> = vec![];
-        for group in grouped {
+        let mut last_set_index = None;
+        for (index, group) in grouped.iter().enumerate() {
             if group.len() > 0 {
+                // Randomly select one of the median actions
                 let median_index = group.len() / 2;
-                median_actions.push(group[median_index].clone());
+                let selection_group_low = (median_index as i32 - 2).max(0);
+                let selection_group_high = (median_index as i32 + 2).min(group.len() as i32 - 1);
+                let selection_group = &group[selection_group_low as usize..=selection_group_high as usize];
+                let selection_index = rand::thread_rng().gen_range(0, selection_group.len());
+                median_actions.push(selection_group[selection_index].clone());
+                last_set_index = Some(index);
             }
         };
+
+        // TODO: Hack
+        // Put the absolute last action in the last group
+        // so that the last action is always the same
+        // For example, all-in maps predictably
+        last_set_index.map(|index| {
+            let last_action = grouped[index].pop().unwrap();
+            // Remove last set action, and replace it with the highest index action
+            median_actions.pop();
+            median_actions.push(last_action);
+        });
+        
+        
         median_actions
     }
 
@@ -347,8 +370,8 @@ mod tests {
             Fold,
             Call,
             Raise(DeciPercent(50)),
-            Raise(DeciPercent(100)),
-            Raise(DeciPercent(150)),
+            Raise(DeciPercent(900)),
+            Raise(DeciPercent(2050)),
         ];
 
         // make sure this test is still valid (all actions map to distinct indices)
