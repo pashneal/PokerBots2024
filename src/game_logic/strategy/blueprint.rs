@@ -379,6 +379,30 @@ mod tests {
     use crate::implementations::auction::*;
     use crate::implementations::auction::RelativeSize::*;
     #[test]
+    pub fn test_model_shove_3bet_range() {
+        let strategy = BlueprintStrategy::load_bincode("auction_poker.bp");
+        strategy.policies[1].iter().for_each(|(info_set, policy)| {
+            let history : History = info_set.clone().into();
+            let history = history.0;
+            if history.len() == 5 {
+                let policy = decompress_policy(policy);
+                let ranks = history[1];
+                let rank1 = (ranks / 13) as usize;
+                let rank2 = (ranks % 13) as usize;
+                let suited = history[2] == 1;
+                let value : Value = rank1.into();
+                let value2 : Value = rank2.into();
+                let value = value.to_string().unwrap();
+                let value2 = value2.to_string().unwrap();
+                let suited = if suited { "s" } else { "o" };
+
+                let rounded = policy.iter().map(|p| (p * 1000.0).round() / 1000.0).collect::<Vec<f32>>();
+                println!("Shove policy for {}{}{} is {:?}, {:?}", value, value2, suited, rounded[13], rounded[14]);
+            }
+        }); 
+
+    }
+    #[test]
     pub fn test_model_can_give_fitting_suggestions() {
         let mut g = Game::<AuctionPokerAction, AuctionPokerState>::new();
         g.play(&AuctionPokerAction::DealHole(0, 0));
@@ -414,7 +438,7 @@ mod tests {
         g.play(&AuctionPokerAction::DealHole(0, 0));
         g.play(&AuctionPokerAction::DealHole(2, 0));
         g.play(&AuctionPokerAction::DealHole(3, 1));
-        g.play(&AuctionPokerAction::DealHole(10, 1));
+        g.play(&AuctionPokerAction::DealHole(8, 1));
         g.play(&AuctionPokerAction::BettingRoundStart);
         let strategy = BlueprintStrategy::load_bincode("auction_poker.bp");
         let policy = strategy.get_exact_policy(&g, 0);
@@ -432,7 +456,7 @@ mod tests {
             flop_onwards : vec![],
         };
         let strategy = strategy.with_evaluator(preflop_evaluator);
-        let bet_size = Amount(40);
+        let bet_size = Amount(15);
         g.play(&AuctionPokerAction::Raise(bet_size.clone()));
         g.play(&AuctionPokerAction::PlayerActionEnd(0));
         let policy = strategy.get_best_policy(&g, 1);

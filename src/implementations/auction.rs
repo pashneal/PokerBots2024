@@ -142,6 +142,26 @@ impl Value {
         }
     }
 }
+impl From<usize> for Value {
+    fn from(value: usize) -> Self {
+        match value {
+            0 => Value::Ace,
+            1 => Value::King,
+            2 => Value::Queen,
+            3 => Value::Jack,
+            4 => Value::Ten,
+            5 => Value::Nine,
+            6 => Value::Eight,
+            7 => Value::Seven,
+            8 => Value::Six,
+            9 => Value::Five,
+            10 => Value::Four,
+            11 => Value::Three,
+            12 => Value::Two,
+            _ => panic!("Invalid suit index"),
+        }
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Card {
@@ -1003,7 +1023,7 @@ impl AuctionPokerState {
             }
             AuctionPokerAction::Auction(winner) => match winner {
                 Winner::Player(player_num) => self.pot + self.bids[player_num ^ 1].unwrap(),
-                Winner::Tie => self.pot,
+                Winner::Tie => self.pot + 2*self.bids[0].unwrap(),
             },
             _ => todo!(),
         }
@@ -1254,6 +1274,9 @@ impl State<AuctionPokerAction> for AuctionPokerState {
                         // Both players get another card!
                         self.player_hands[0].expand();
                         self.player_hands[1].expand();
+                        // See variant: Both players lose their bids to the pot
+                        self.stacks[0] -= self.bids[0].unwrap();
+                        self.stacks[1] -= self.bids[0].unwrap();
                     }
                 }
                 self.winner = Some(winner.clone());
