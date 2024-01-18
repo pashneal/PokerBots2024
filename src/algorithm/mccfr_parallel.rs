@@ -37,7 +37,7 @@ impl<A: Action + Sync + Send + 'static, S: State<A> + Send + 'static> MCCFRParal
     pub fn run_iterations(&mut self, iterations: usize, epsilon: f32) {
         // Save intermediate results
         // makes sure to pick a  good batch size
-        let batch_size = 1000;
+        let batch_size = 2000;
 
         // Total intermediate iterations 
         let total_batches = iterations / batch_size;
@@ -64,6 +64,8 @@ impl<A: Action + Sync + Send + 'static, S: State<A> + Send + 'static> MCCFRParal
                 self.runners.push(runner);
             }
             if let Some(file_name) = &self.file_name {
+                println!("Saving to file {}", file_name);
+                println!("Iteration {} completed", (i+1) * batch_size);
                 self.write_to(file_name);
             } else {
                 println!("No file name provided, not saving");
